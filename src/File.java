@@ -11,7 +11,6 @@ public class File {
     }
 
     public int hash() {
-        
-        return 123;
+        return Util.hash(this.name);
     }
 }
