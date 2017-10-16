@@ -15,4 +15,7 @@ public class NameServer {
     public InetAddress getIpByName(String name) {
         return nodeIpMap.get(Util.hash(name));
     }
+
+    public static void main(String[] args){
+    }
 }

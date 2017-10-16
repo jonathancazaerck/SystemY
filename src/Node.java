@@ -9,4 +9,8 @@ public class Node {
         this.name = name;
         this.id = Util.hash(name);
     }
+
+    public static void main(String[] args){
+
+    }
 }
