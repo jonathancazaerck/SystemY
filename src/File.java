@@ -11,6 +11,7 @@ public class File {
     }
 
     public int hash() {
+        
         return 123;
     }
 }
