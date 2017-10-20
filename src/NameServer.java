@@ -3,13 +3,20 @@ import org.json.simple.JSONObject;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.rmi.AlreadyBoundException;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class NameServer {
+public class NameServer extends UnicastRemoteObject implements NameServerOperations {
     public TreeMap<Integer, InetAddress> nodeIpMap;
 
-    public NameServer() {
+    public NameServer() throws RemoteException {
+        super();
         this.nodeIpMap = new TreeMap<Integer, InetAddress>();
     }
 
@@ -42,6 +49,18 @@ public class NameServer {
             System.out.println("Successfully Copied JSON Object to File...");
             System.out.println("\nJSON Object: " + obj);
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main (String[] args){
+        try{
+            Registry vRegistry = LocateRegistry.getRegistry();
+            vRegistry.bind(NameServerOperations.class.getName(), (Remote) new NameServer());
+            System.out.println("NameServer ready.");
+        } catch (RemoteException e){
+            e.printStackTrace();
+        } catch (AlreadyBoundException e){
             e.printStackTrace();
         }
     }
