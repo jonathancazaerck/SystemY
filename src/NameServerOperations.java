@@ -1,10 +1,11 @@
 import java.net.InetAddress;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.util.HashMap;
 
 public interface NameServerOperations extends Remote{
 
+    void registerNodeByName(String name, InetAddress ip) throws RemoteException;
     InetAddress getIpByName(int name) throws RemoteException;
-    void registerNodeByName(String name, InetAddress ip);
-    
+    void toJSON(HashMap<Integer, InetAddress> map) throws RemoteException;
 }
