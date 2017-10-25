@@ -9,5 +9,5 @@ public interface NameServerOperations extends Remote {
     InetAddress getIpByName(String name) throws RemoteException;
     void printTreemap() throws RemoteException;
     void removeNodeByName(String name) throws RemoteException;
-    void toJSON(TreeMap<Integer, InetAddress> map) throws RemoteException;
+    void exportToJSON() throws RemoteException;
 }

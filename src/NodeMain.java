@@ -12,6 +12,7 @@ public class NodeMain {
             NameServerOperations vNameServerOperations = (NameServerOperations) vRegistry.lookup("NameServerOperations");
             //Node vConnection = new Node(args[0], InetAddress.getByName(args[1]), vNameServerOperations);
             vNameServerOperations.registerNodeByName(args[0], InetAddress.getByName(args[1]));
+            System.out.println("Registered node "+ args[0] + " with ip " + args[1]);
         } catch (UnknownHostException e) {
             e.printStackTrace();
         } catch (RemoteException e) {
