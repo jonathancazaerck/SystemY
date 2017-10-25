@@ -1,6 +1,6 @@
 # ds3
 
-##Klassen
+## Klassen
 
 - NameServer
   - bevat een MAP met integer naar IP-adressen
@@ -11,3 +11,10 @@
   - naam
   - path
   
+## RMIregistry uitvoeren
+Het is belangrijk om RMIregistry in de juiste map uit te voeren!
+
+```bash
+cd out/production/ds3
+rmiregistry
+```
