@@ -22,7 +22,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public void registerNodeByName(String name, InetAddress ip) {
         Integer hash = Util.hash(name);
-        // @Hans: Try en Catch niet beter?
+        // @Hans: Try en Catch niet beter? En zo ja, kan je dit implementeren?
         if(nodeIpMap.containsKey(hash)) System.out.println("Naam bestaat reeds!");
         else nodeIpMap.put(hash, ip);
     }
@@ -41,6 +41,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         nodeIpMap.remove(Util.hash(name));
     }
 
+
     public void toJSON(TreeMap<Integer, InetAddress> map){
         JSONObject obj = new JSONObject(map);
 
@@ -49,18 +50,6 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
             System.out.println("Successfully Copied JSON Object to File...");
             System.out.println("\nJSON Object: " + obj);
         } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void main (String[] args){
-        try{
-            Registry vRegistry = LocateRegistry.getRegistry();
-            vRegistry.bind(NameServerOperations.class.getName(), (Remote) new NameServer());
-            System.out.println("NameServer ready.");
-        } catch (RemoteException e){
-            e.printStackTrace();
-        } catch (AlreadyBoundException e){
             e.printStackTrace();
         }
     }

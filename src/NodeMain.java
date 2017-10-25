@@ -1,11 +1,12 @@
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.rmi.RemoteException;
 
-public class DS3 {
-
+public class NodeMain {
     public static void main(String[] args){
-        NameServer nameServer = new NameServer();
         try {
+            NameServer nameServer = new NameServer();
+
             nameServer.registerNodeByName("jefke", InetAddress.getByName("127.0.0.1"));
 
             //Proberen of er twee dezelfde nodes kunnen aangemaakt worden
@@ -23,6 +24,8 @@ public class DS3 {
             //Print en schrijf JSON-file
             nameServer.toJSON(nameServer.nodeIpMap);
         } catch (UnknownHostException e) {
+            e.printStackTrace();
+        } catch (RemoteException e) {
             e.printStackTrace();
         }
     }

@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="nameserver">
+    <output-path>$PROJECT_DIR$/out/artifacts/nameserver</output-path>
+    <root id="archive" name="nameserver.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/manifests/nameserver/META-INF/MANIFEST.MF" />
+      </element>
+    </root>
+  </artifact>
+</component>
