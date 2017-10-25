@@ -18,3 +18,15 @@ Het is belangrijk om RMIregistry in de juiste map uit te voeren!
 cd out/production/ds3
 rmiregistry
 ```
+
+## Nameserver uitvoeren
+
+```bash
+java -jar out/artifacts/nameserver_jar/nameserver.jar
+```
+
+## Node uitvoeren
+
+```bash
+java -jar out/artifacts/node_jar/node.jar hans 192.168.0.1
+```
