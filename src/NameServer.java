@@ -30,7 +30,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         Integer hash = Util.hash(name);
         // @Hans: Try en Catch niet beter? En zo ja, kan je dit implementeren?
         if(nodeIpMap.containsKey(hash)) {
-            System.out.println("Naam " + name + " bestaat reeds!");
+            System.out.println("A node with name " + name + " already exists!");
         } else {
             System.out.println("Registered node "+ name + " with ip " + ip.toString());
             nodeIpMap.put(hash, ip);
@@ -54,19 +54,22 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public InetAddress getIpByFileName(String fileName) {
         if (nodeIpMap.isEmpty()) {
-            System.out.println("Geen nodes!");
+            System.out.println("No nodes!");
             return null;
         } else {
             Integer fileNameHash = Util.hash(fileName);
-            Integer closestMatch = (int) Math.pow(2, 16);
+            Integer closestHash = null;
+            Integer biggestHash = null;
             for (Map.Entry<Integer, InetAddress> entry : nodeIpMap.entrySet()) {
                 int nodeHash = entry.getKey();
-                int diff = Math.abs(fileNameHash - nodeHash);
-                if (diff < closestMatch) {
-                    closestMatch = nodeHash;
+                int diff = fileNameHash - nodeHash;
+                if (diff < 0 && (biggestHash == null || nodeHash > biggestHash)) {
+                    biggestHash = nodeHash;
+                } else if (closestHash == null || diff < closestHash) {
+                    closestHash = nodeHash;
                 }
             }
-            return nodeIpMap.get(closestMatch);
+            return closestHash != null ? nodeIpMap.get(closestHash) : nodeIpMap.get(biggestHash);
         }
     }
 
