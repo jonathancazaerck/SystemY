@@ -3,17 +3,14 @@ import org.json.simple.JSONValue;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.rmi.AlreadyBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations {
@@ -22,8 +19,25 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     public NameServer() throws RemoteException {
         super();
         this.nodeIpMap = new TreeMap<Integer, InetAddress>();
-        importJSON();
         printTreemap();
+
+        try {
+            InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
+            MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
+            socket.joinGroup(multicastIp);
+
+            byte[] buffer = new byte[1000];
+
+            while(true) {
+                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                socket.receive(packet);
+
+                System.out.println(packet.getAddress());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void registerNodeByName(String name, InetAddress ip) {
@@ -34,7 +48,6 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         } else {
             System.out.println("Registered node "+ name + " with ip " + ip.toString());
             nodeIpMap.put(hash, ip);
-            exportJSON();
         }
     }
 
@@ -71,6 +84,10 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
             }
             return closestHash != null ? nodeIpMap.get(closestHash) : nodeIpMap.get(biggestHash);
         }
+    }
+
+    public int getNumberOfNodes() {
+        return nodeIpMap.size();
     }
 
     @SuppressWarnings("unchecked")

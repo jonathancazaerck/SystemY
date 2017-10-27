@@ -8,7 +8,8 @@ public interface NameServerOperations extends Remote {
     InetAddress getIpByName(String name) throws RemoteException;
     void printTreemap() throws RemoteException;
     void removeNodeByName(String name) throws RemoteException;
-    InetAddress getIpByFileName(String fileName);
+    InetAddress getIpByFileName(String fileName) throws RemoteException;
+    int getNumberOfNodes() throws RemoteException;
     void exportJSON() throws RemoteException;
     void importJSON() throws RemoteException;
 }
