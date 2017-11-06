@@ -1,9 +1,11 @@
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
+import org.json.simple.parser.ParseException;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.nio.file.Files;
@@ -23,18 +25,36 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
         try {
             InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
-            MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
-            socket.joinGroup(multicastIp);
+            MulticastSocket multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
+            DatagramSocket datagramSocket = new DatagramSocket();
+            multicastSocket.joinGroup(multicastIp);
 
             byte[] buffer = new byte[1000];
 
             while(true) {
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                socket.receive(packet);
+                multicastSocket.receive(packet);
 
-                System.out.println(packet.getAddress());
+                String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+
+                System.out.println(msg);
+
+                JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
+
+                String nodeName = (String) obj.get("name");
+                InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
+
+                this.registerNodeByName(nodeName, nodeIp);
+
+                JSONObject responseObj = new JSONObject();
+                responseObj.put("amount", this.getNumberOfNodes());
+                String responseStr = responseObj.toJSONString();
+
+                datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
             e.printStackTrace();
         }
 
@@ -111,7 +131,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     public void importJSON() {
         try {
             String str = new String(Files.readAllBytes(Paths.get("nameserver.json")));
-            JSONObject obj = (JSONObject) JSONValue.parse(str);
+            JSONObject obj = (JSONObject) JSONValue.parseWithException(str);
 
             for(Object objEntry : obj.entrySet()) {
                 Map.Entry<String, String> entry = (Map.Entry<String, String>) objEntry;
@@ -119,6 +139,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 nodeIpMap.put(Integer.parseInt(entry.getKey()), InetAddress.getByName(entry.getValue()));
             }
         } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
             e.printStackTrace();
         }
     }

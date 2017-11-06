@@ -1,6 +1,5 @@
 import java.net.InetAddress;
 
-
 public class Node {
     public InetAddress ip;
     public String name;
