@@ -1,4 +1,3 @@
-import com.sun.tools.internal.jxc.ap.Const;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
@@ -11,6 +10,10 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 public class NodeMain {
+    public static int id;
+    public static int nextNodeId;
+    public static int prevNodeId;
+
     public static void main(String[] args) {
         // Registry registry = LocateRegistry.getRegistry();
         // NameServerOperations nameServerOperations = (NameServerOperations) registry.lookup("NameServerOperations");
@@ -19,6 +22,7 @@ public class NodeMain {
 
 
         String name = args[0];
+        id = Util.hash(name);
         int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
         InetSocketAddress address = new InetSocketAddress(args[1], port);
         System.out.println("Multicasting node " + name + " with address " + address.toString());
@@ -74,17 +78,18 @@ public class NodeMain {
 
                 int hashNode = Util.hash(nodeName);
 
-                if(Node.id < hashNode && hashNode < Node.nextNodeId){
-                    Node.nextNodeId = hashNode;
+                if(id < hashNode && hashNode < nextNodeId){
+                    nextNodeId = hashNode;
 
                     JSONObject responseObj = new JSONObject();
-                    responseObj.put("selfId", Node.id);
-                    responseObj.put("nextNodeId", Node.nextNodeId);
+                    responseObj.put("type", "Neighbour update");
+                    responseObj.put("selfId", id);
+                    responseObj.put("nextNodeId", nextNodeId);
                     String responseStr = responseObj.toJSONString();
 
                     datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
-                } else if(Node.prevNodeId < hashNode && Node.id < hashNode){
-                    Node.prevNodeId = hashNode;
+                } else if(prevNodeId < hashNode && id < hashNode){
+                    prevNodeId = hashNode;
                 }
             }
         } catch (IOException e) {
