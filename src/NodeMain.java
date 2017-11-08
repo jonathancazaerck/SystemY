@@ -93,4 +93,49 @@ public class NodeMain {
             e.printStackTrace();
         }
     }
+
+
+    public static void deleteThisNode(){
+        try {
+            InetAddress NextIP = InetAddress.getByName(Constants.MULTICAST_IP); //Change this to the next ip
+            InetAddress PreviousIP = InetAddress.getByName(Constants.MULTICAST_IP); //Change this to the prev ip
+            JSONObject neighboursChangeMsg = new JSONObject();
+            neighboursChangeMsg.put("current",Node.id);
+            neighboursChangeMsg.put("nextNeighbour", Node.nextNodeId);
+            neighboursChangeMsg.put("previousNeighbour", Node.prevNodeId);
+            String neighboursChangeMsgStr = neighboursChangeMsg.toString();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public static void receiveDelete(){
+
+        //Hieronder komt code om datagrampakket te ontvangen. Moet nog aangepast worden!!!!!!!
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+        multicastSocket.receive(packet);
+
+        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+
+        System.out.println("Received message: " + msg);
+
+        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
+
+        int ToBeDeleted = (int) obj.get("current");
+        int prevNeighbour = (int) obj.get("previousNeighbour");
+        int nextNeighbour = (int) obj.get("nextNeighbour");
+
+        if(Node.id < ToBeDeleted){
+            //Vorige buur wijzigen
+            //Verander veld volgende buur
+            Node.nextNodeId = nextNeighbour;
+        }
+
+        else{
+            //Volgende buur wijzigen
+            //Verander veld vorige buur
+            Node.prevNodeId = prevNeighbour;
+        }
+    }
 }
