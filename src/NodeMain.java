@@ -1,4 +1,6 @@
 import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.net.*;
@@ -7,7 +9,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-public class NodeMain {
+public class NodeMain{
     public static void main(String[] args){
         try {
             if (false) {
@@ -52,6 +54,7 @@ public class NodeMain {
 
 
     public static void receiveNode(){
+
         try {
             InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
             MulticastSocket multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
@@ -69,12 +72,30 @@ public class NodeMain {
 
                 System.out.println(msg);
 
+                JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
 
+                String nodeName = (String) obj.get("name");
+                InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
+
+                int hashNode = Util.hash(nodeName);
+
+                if(Node.id < hashNode && hashNode < Node.nextNodeId){
+                    Node.nextNodeId = hashNode;
+
+                    JSONObject responseObj = new JSONObject();
+                    responseObj.put("selfId", Node.id);
+                    responseObj.put("nextNodeId", Node.nextNodeId);
+                    String responseStr = responseObj.toJSONString();
+
+                    datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
+                } else if(Node.prevNodeId < hashNode && Node.id < hashNode){
+                    Node.prevNodeId = hashNode;
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
-
-
     }
 }
