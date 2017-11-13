@@ -12,6 +12,7 @@ public class Node {
         this.name = name;
         this.id = Util.hash(name);
         this.nodeOperations = nodeOperations;
+
     }
 
 

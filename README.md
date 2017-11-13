@@ -22,11 +22,11 @@ rmiregistry
 ## Nameserver uitvoeren
 
 ```bash
-java -jar out/artifacts/nameserver_jar/nameserver.jar
+java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/nameserver_jar/nameserver.jar
 ```
 
 ## Node uitvoeren
 
 ```bash
-java -jar out/artifacts/node_jar/node.jar hans 192.168.0.1
+java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/node_jar/node.jar <hostname> <localhost/IP> <poortnummer>
 ```

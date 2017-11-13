@@ -4,6 +4,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.net.*;
+import java.rmi.Naming;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -15,17 +16,23 @@ public class NodeMain {
     public static int prevNodeId;
 
     public static void main(String[] args) {
-        // Registry registry = LocateRegistry.getRegistry();
-        // NameServerOperations nameServerOperations = (NameServerOperations) registry.lookup("NameServerOperations");
-        // nameServerOperations.registerNodeByName(args[0], InetAddress.getByName(args[1]));
-        // System.out.println("Registered node " + args[0] + " with ip " + args[1] + " and port " + args[2]);
-
-
+        Registry registry = null;
         String name = args[0];
         id = Util.hash(name);
         int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
         InetSocketAddress address = new InetSocketAddress(args[1], port);
         System.out.println("Multicasting node " + name + " with address " + address.toString());
+
+        try {
+            registry = LocateRegistry.getRegistry();
+            NameServerOperations nameServerOperations = (NameServerOperations) registry.lookup("NameServerOperations");
+            //Naming.rebind(id,);
+            System.out.println("Registered node " + name + " with address " + address.toString());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        } catch (NotBoundException e) {
+            e.printStackTrace();
+        }
 
         try {
             JSONObject messageObj = new JSONObject();
@@ -115,32 +122,32 @@ public class NodeMain {
 
     }
 
-    public static void receiveDelete(){
-
-        //Hieronder komt code om datagrampakket te ontvangen. Moet nog aangepast worden!!!!!!!
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        multicastSocket.receive(packet);
-
-        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
-
-        System.out.println("Received message: " + msg);
-
-        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
-
-        int ToBeDeleted = (int) obj.get("current");
-        int prevNeighbour = (int) obj.get("previousNeighbour");
-        int nextNeighbour = (int) obj.get("nextNeighbour");
-
-        if(Node.id < ToBeDeleted){
-            //Vorige buur wijzigen
-            //Verander veld volgende buur
-            Node.nextNodeId = nextNeighbour;
-        }
-
-        else{
-            //Volgende buur wijzigen
-            //Verander veld vorige buur
-            Node.prevNodeId = prevNeighbour;
-        }
-    }
+//    public static void receiveDelete(){
+//
+//        //Hieronder komt code om datagrampakket te ontvangen. Moet nog aangepast worden!!!!!!!
+//        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+//        multicastSocket.receive(packet);
+//
+//        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+//
+//        System.out.println("Received message: " + msg);
+//
+//        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
+//
+//        int ToBeDeleted = (int) obj.get("current");
+//        int prevNeighbour = (int) obj.get("previousNeighbour");
+//        int nextNeighbour = (int) obj.get("nextNeighbour");
+//
+//        if(Node.id < ToBeDeleted){
+//            //Vorige buur wijzigen
+//            //Verander veld volgende buur
+//            Node.nextNodeId = nextNeighbour;
+//        }
+//
+//        else{
+//            //Volgende buur wijzigen
+//            //Verander veld vorige buur
+//            Node.prevNodeId = prevNeighbour;
+//        }
+//    }
 }

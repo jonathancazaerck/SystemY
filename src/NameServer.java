@@ -11,7 +11,12 @@ import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.rmi.AlreadyBoundException;
+import java.rmi.Naming;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
 import java.util.TreeMap;
@@ -21,6 +26,14 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public NameServer() throws RemoteException {
         super();
+
+        Registry vRegistry = LocateRegistry.getRegistry();
+        try {
+            vRegistry.bind("NameServerOperations", new NameServer());
+        } catch (AlreadyBoundException e) {
+            e.printStackTrace();
+        }
+
         this.nodeAddressMap = new TreeMap<Integer, InetSocketAddress>();
         printTreemap();
 
@@ -53,12 +66,14 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
                 this.registerNodeByName(nodeName, nodeAddress);
 
-                JSONObject responseObj = new JSONObject();
-                responseObj.put("type", "amount_update");
-                responseObj.put("amount", this.getNumberOfNodes());
-                String responseStr = responseObj.toJSONString();
 
-                datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
+
+//                JSONObject responseObj = new JSONObject();
+//                responseObj.put("type", "amount_update");
+//                responseObj.put("amount", this.getNumberOfNodes());
+//                String responseStr = responseObj.toJSONString();
+//
+//                datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
             }
         } catch (IOException e) {
             e.printStackTrace();
