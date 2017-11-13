@@ -104,6 +104,15 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
+    public InetSocketAddress getAddressToReplicateTo(Integer filehash){
+        Integer foundKey;
+        foundKey = nodeAddressMap.floorKey(filehash); //FloorKey returns a key-value mapping associated with the greatest key less than or equal to the given key, or null if there is no such key.
+        if(foundKey == null){
+            foundKey = nodeAddressMap.lastKey();
+        }
+        return nodeAddressMap.get(foundKey);
+    }
+
     public void removeNodeByName(String name) {
         nodeAddressMap.remove(Util.hash(name));
     }
