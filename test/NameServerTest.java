@@ -1,5 +1,4 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
 import com.sun.tools.internal.jxc.ap.Const;
 import org.junit.jupiter.api.Test;
 

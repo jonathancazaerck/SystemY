@@ -12,5 +12,6 @@
     <orderEntry type="library" name="nameserver" level="project" />
     <orderEntry type="library" name="lib" level="project" />
     <orderEntry type="library" name="node" level="project" />
+    <orderEntry type="library" name="json-simple-1.1.1" level="project" />
   </component>
 </module>

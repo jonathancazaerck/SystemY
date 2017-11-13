@@ -78,19 +78,7 @@ public class NodeMain {
 
                 int hashNode = Util.hash(nodeName);
 
-                if(id < hashNode && hashNode < nextNodeId){
-                    nextNodeId = hashNode;
-
-                    JSONObject responseObj = new JSONObject();
-                    responseObj.put("type", "Neighbour update");
-                    responseObj.put("selfId", id);
-                    responseObj.put("nextNodeId", nextNodeId);
-                    String responseStr = responseObj.toJSONString();
-
-                    datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
-                } else if(prevNodeId < hashNode && id < hashNode){
-                    prevNodeId = hashNode;
-                }
+                handleNewNode(hashNode);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -99,6 +87,27 @@ public class NodeMain {
         }
     }
 
+    public static void handleNewNode(int hashNode){
+        boolean firstNode = false;
+        boolean lastNode = false;
+
+        if(nextNodeId < id) lastNode = true;
+        if(id < prevNodeId) firstNode = true;
+
+        if ((id < hashNode && hashNode < nextNodeId) || (lastNode == true && (id < hashNode || hashNode<nextNodeId) )){
+//            JSONObject responseObj = new JSONObject();
+//            responseObj.put("type", "Neighbour update");
+//            responseObj.put("selfId", id);
+//            responseObj.put("nextNodeId", nextNodeId);
+//            String responseStr = responseObj.toJSONString();
+//
+//            datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
+
+            nextNodeId = hashNode;
+        } else if ((prevNodeId < hashNode && id < hashNode) || (firstNode == true && (prevNodeId < hashNode || hashNode < id))) {
+            prevNodeId = hashNode;
+        }
+    }
 
     public static void deleteThisNode(){
         try {
@@ -115,32 +124,32 @@ public class NodeMain {
 
     }
 
-    public static void receiveDelete(){
-
-        //Hieronder komt code om datagrampakket te ontvangen. Moet nog aangepast worden!!!!!!!
-        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        multicastSocket.receive(packet);
-
-        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
-
-        System.out.println("Received message: " + msg);
-
-        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
-
-        int ToBeDeleted = (int) obj.get("current");
-        int prevNeighbour = (int) obj.get("previousNeighbour");
-        int nextNeighbour = (int) obj.get("nextNeighbour");
-
-        if(Node.id < ToBeDeleted){
-            //Vorige buur wijzigen
-            //Verander veld volgende buur
-            Node.nextNodeId = nextNeighbour;
-        }
-
-        else{
-            //Volgende buur wijzigen
-            //Verander veld vorige buur
-            Node.prevNodeId = prevNeighbour;
-        }
-    }
+//    public static void receiveDelete(){
+//
+//        //Hieronder komt code om datagrampakket te ontvangen. Moet nog aangepast worden!!!!!!!
+//        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+//        multicastSocket.receive(packet);
+//
+//        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+//
+//        System.out.println("Received message: " + msg);
+//
+//        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
+//
+//        int ToBeDeleted = (int) obj.get("current");
+//        int prevNeighbour = (int) obj.get("previousNeighbour");
+//        int nextNeighbour = (int) obj.get("nextNeighbour");
+//
+//        if(Node.id < ToBeDeleted){
+//            //Vorige buur wijzigen
+//            //Verander veld volgende buur
+//            Node.nextNodeId = nextNeighbour;
+//        }
+//
+//        else{
+//            //Volgende buur wijzigen
+//            //Verander veld vorige buur
+//            Node.prevNodeId = prevNeighbour;
+//        }
+//    }
 }
