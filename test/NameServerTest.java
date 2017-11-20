@@ -1,9 +1,9 @@
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.sun.tools.internal.jxc.ap.Const;
+import ds3.Constants;
+import ds3.NameServer;
 import org.junit.jupiter.api.Test;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;

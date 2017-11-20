@@ -2,11 +2,11 @@
 
 ## Klassen
 
-- NameServer
+- ds3.NameServer
   - bevat een MAP met integer naar IP-adressen
   - Map opslaan op hdd als JSON (XML als het echt niet anders kan)
-- Node
-- File
+- ds3.Node
+- ds3.File
   - hash()
   - naam
   - path
@@ -25,7 +25,7 @@ rmiregistry
 java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/nameserver_jar/nameserver.jar
 ```
 
-## Node uitvoeren
+## ds3.Node uitvoeren
 
 ```bash
 java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/node_jar/node.jar <hostname> <localhost/IP> <poortnummer>
