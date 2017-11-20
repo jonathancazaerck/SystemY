@@ -83,19 +83,7 @@ public class NodeMain {
 
                 int hashNode = Util.hash(nodeName);
 
-//                if(id < hashNode && hashNode < nextNodeId){
-//                    nextNodeId = hashNode;
-//
-//                    JSONObject responseObj = new JSONObject();
-//                    responseObj.put("type", "Neighbour update");
-//                    responseObj.put("selfId", id);
-//                    responseObj.put("nextNodeId", nextNodeId);
-//                    String responseStr = responseObj.toJSONString();
-//
-//                    datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
-//                } else if(prevNodeId < hashNode && id < hashNode){
-//                    prevNodeId = hashNode;
-//                }
+                handleNewNode(hashNode);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -104,6 +92,27 @@ public class NodeMain {
         }
     }
 
+    public static void handleNewNode(int hashNode){
+//         boolean firstNode = false;
+//         boolean lastNode = false;
+//
+//         if(nextNodeId < id) lastNode = true;
+//         if(id < prevNodeId) firstNode = true;
+//
+//         if ((id < hashNode && hashNode < nextNodeId) || (lastNode == true && (id < hashNode || hashNode<nextNodeId) )){
+// //            JSONObject responseObj = new JSONObject();
+// //            responseObj.put("type", "Neighbour update");
+// //            responseObj.put("selfId", id);
+// //            responseObj.put("nextNodeId", nextNodeId);
+// //            String responseStr = responseObj.toJSONString();
+// //
+// //            datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, Constants.MULTICAST_PORT));
+//
+//             nextNodeId = hashNode;
+//         } else if ((prevNodeId < hashNode && id < hashNode) || (firstNode == true && (prevNodeId < hashNode || hashNode < id))) {
+//             prevNodeId = hashNode;
+//         }
+    }
 
     public static void deleteThisNode(){
         try {
