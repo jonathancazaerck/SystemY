@@ -158,13 +158,27 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     }
 
     public int getPrevHash(int hash) {
-        // TODO: fixen
-        return hash;
+        Map.Entry<Integer, InetSocketAddress> prev = nodeAddressMap.lowerEntry(hash);
+
+        if (prev==null) {
+            System.out.println("Last: "+nodeAddressMap.lastKey());
+            return nodeAddressMap.lastKey();
+        }
+
+        System.out.println("Prev: "+prev.getKey());
+        return prev.getKey();
     }
 
     public int getNextHash(int hash) {
-        // TODO: fixen
-        return hash;
+        Map.Entry<Integer, InetSocketAddress> next = nodeAddressMap.higherEntry(hash);
+
+        if (next==null) {
+            System.out.println("First: "+nodeAddressMap.firstKey());
+            return nodeAddressMap.firstKey();
+        }
+
+        System.out.println("Next: "+next.getKey());
+        return next.getKey();
     }
 
     @SuppressWarnings("unchecked")

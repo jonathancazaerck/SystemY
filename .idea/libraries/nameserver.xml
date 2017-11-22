@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="nameserver">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/out/artifacts/nameserver_jar/nameserver.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

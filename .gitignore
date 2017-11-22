@@ -4,4 +4,6 @@
 .idea/vcs.xml
 .DS_Store
 .gradle
+ds3.iml
+ds3.iws
 /build
