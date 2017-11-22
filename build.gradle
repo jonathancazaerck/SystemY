@@ -24,11 +24,41 @@ dependencies {
     // testCompile dependency to testCompile 'org.testng:testng:6.8.1' and add
     // 'test.useTestNG()' to your build script.
     testCompile 'junit:junit:4.12'
+    testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.2'
+    testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.0.2'
+    testCompile 'org.junit.platform:junit-platform-runner:1.0.2'
 
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
 }
 
-sourceSets.main.java.srcDirs = ['src']
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.2'
+    }
+}
+
+apply plugin: 'org.junit.platform.gradle.plugin'
+
+junitPlatform {
+    details 'tree'
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+        }
+    }
+    test {
+        java {
+            srcDir 'test'
+        }
+    }
+}
 
 task nodeJarTask(type: Jar) {
     from sourceSets.main.output

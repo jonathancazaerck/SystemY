@@ -1,7 +1,4 @@
-.idea/misc.xml
-.idea/workspace.xml
-.idea/modules.xml
-.idea/vcs.xml
+.idea/
 .DS_Store
 .gradle
 ds3.iml

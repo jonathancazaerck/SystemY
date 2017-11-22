@@ -1,12 +1,15 @@
 import ds3.NameServer;
 import ds3.Node;
 import ds3.NodeMain;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 public class NodeTest {
     @Test
@@ -16,19 +19,19 @@ public class NodeTest {
         Node node2 = new Node("hans", new InetSocketAddress("localhost",6667));
 
 
-        Thread tNS = new Thread(){
+        Thread tNS = new Thread() {
             public void run(){
                 nameserver.start();
             }
         };
 
-        Thread tN1 = new Thread(){
+        Thread tN1 = new Thread() {
             public void run(){
                 node.start();
             }
         };
 
-        Thread tN2 = new Thread(){
+        Thread tN2 = new Thread() {
             public void run(){
                 node2.start();
             }
@@ -37,6 +40,9 @@ public class NodeTest {
         tNS.start();
         tN1.start();
         tN2.start();
+
+        assertEquals("dalk", node.getName());
+        assertNotEquals("node", node.getName());
     }
 
 
