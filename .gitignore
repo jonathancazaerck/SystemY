@@ -1,6 +1,8 @@
-.idea/
+/.idea
 .DS_Store
 .gradle
 ds3.iml
+ds3.ipr
 ds3.iws
 /build
+/out
