@@ -4,7 +4,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.*;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
@@ -99,7 +99,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
         messageObj.put("name", name);
         messageObj.put("ip", address.getHostString());
         messageObj.put("port", address.getPort());
-        String msg = messageObj.toJSONString();
+            String msg = messageObj.toJSONString();
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
         socket.joinGroup(multicastIp);
@@ -157,6 +157,41 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
             this.nextNodeHash = newNeighbourHash;
         } else {
             this.prevNodeHash = newNeighbourHash;
+        }
+    }
+
+    public  void replicateFiles() {
+        File dir = new File("nodeOwnFiles");
+        File[] directoryListing = dir.listFiles();
+
+        int idToDupl = 0;
+        InetAddress ipToDupl;
+        int portToDupl;
+
+        int count;
+        byte[] buffer = new byte[(int) Math.pow(2, 10)];
+
+        if (directoryListing != null) {
+            for (File child : directoryListing) {
+                String name =  child.getName();
+                int hash = Util.hash(name);
+                //rmi naar nameserver om node te bekomen waarvan id kleiner is dan de hash van het bestand (kopiëren naar 'idToDupl')
+                if(idToDupl == hash){
+                    idToDupl = prevNodeHash;
+                    //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
+
+//                    Socket socket = new Socket(ipToDupl,portToDupl);
+//
+//                    try{
+//                        OutputStream out = Socket.getOutputStream();
+//                        FileInputStream fis = new FileInputStream();
+//                        BufferedInputStream bfis = new BufferedInputStream(fis);
+//                    }catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+                }
+            }
+
         }
     }
 }
