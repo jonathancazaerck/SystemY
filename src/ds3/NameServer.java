@@ -6,92 +6,110 @@ import org.json.simple.parser.ParseException;
 
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.MulticastSocket;
+import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations {
     private TreeMap<Integer, InetSocketAddress> nodeAddressMap;
+    private InetAddress ip;
 
-    public NameServer() throws RemoteException {
+    public NameServer(InetAddress ip) throws RemoteException {
         super();
+        this.ip = ip;
         this.nodeAddressMap = new TreeMap<Integer, InetSocketAddress>();
-        printTreemap();
+    }
 
+    public void start() {
+        Registry registry;
         try {
+            System.out.println("Creating registry");
+            registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT);
+            System.out.println("Created registry");
+
+            System.out.println("Binding this to registry");
+            registry.bind("NameServer", this);
+            System.out.println("Bound this to registry");
+
             InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
             MulticastSocket multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
-            DatagramSocket datagramSocket = new DatagramSocket();
             multicastSocket.joinGroup(multicastIp);
 
-            byte[] buffer = new byte[1000];
+            System.out.println("Ready to receive multicasts");
 
             while(true) {
+                byte[] buffer = new byte[1000];
                 DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
                 multicastSocket.receive(packet);
 
-                String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
-
-                System.out.println("Received message: " + msg);
-
-                JSONObject obj = (JSONObject) JSONValue.parseWithException(msg+"\n");
-
-                String msgType = (String) obj.get("type");
-
-                switch (msgType) {
-                    case "node_register":
-                        String nodeName = (String) obj.get("name");
-                        InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
-                        int nodePort = ((Long) obj.get("port")).intValue();
-                        InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort);
-
-                        this.registerNodeByName(nodeName, nodeAddress);
-
-                        JSONObject responseObj = new JSONObject();
-                        responseObj.put("type", "amount_update");
-                        responseObj.put("amount", this.getNumberOfNodes());
-                        String responseStr = responseObj.toJSONString();
-
-                        TimeUnit.SECONDS.sleep(10);
-                        System.out.println("Sending amount of nodes to " + nodeName + " with address " + nodeIp+":"+nodePort);
-                        datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
-
-                        break;
-                    case "node_shutdown":
-                        break;
-                }
+                handleMulticastPacket(packet);
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (AlreadyBoundException e) {
+            e.printStackTrace();
         } catch (ParseException e) {
             e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (UnknownMessageException e) {
+            e.printStackTrace();
+        } catch (ExistingNodeException e) {
             e.printStackTrace();
         }
-
     }
 
-    public void registerNodeByName(String name, InetSocketAddress address) {
+    private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, ExistingNodeException {
+        String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
+
+        System.out.println("Received message: " + msg);
+
+        JSONObject obj = (JSONObject) JSONValue.parseWithException(msg + "\n");
+
+        String msgType = (String) obj.get("type");
+
+        switch (msgType) {
+            case "node_hello":
+                String nodeName = (String) obj.get("name");
+                InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
+                int nodePort = ((Long) obj.get("port")).intValue();
+                InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort);
+
+
+                this.registerNodeByName(nodeName, nodeAddress);
+
+                JSONObject responseMsg = new JSONObject();
+                responseMsg.put("type", "nameserver_hello");
+                responseMsg.put("ip", "localhost");
+                String responseStr = responseMsg.toJSONString();
+
+                DatagramSocket datagramSocket = new DatagramSocket();
+
+                System.out.println("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
+                datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
+
+                break;
+            default:
+                throw new UnknownMessageException(msgType, msg);
+        }
+    }
+
+    private void registerNodeByName(String name, InetSocketAddress address) throws ExistingNodeException {
         Integer hash = Util.hash(name);
-        // @Hans: Try en Catch niet beter? En zo ja, kan je dit implementeren?
         if(nodeAddressMap.containsKey(hash)) {
-            System.out.println("A node with name " + name + " already exists!");
+            throw new ExistingNodeException(name);
         } else {
             System.out.println("Registered node " + name + " with address " + address.toString());
             nodeAddressMap.put(hash, address);
         }
     }
 
-    public InetSocketAddress getAddressToReplicateTo(Integer filehash){
+    private InetSocketAddress getAddressToReplicateTo(Integer filehash){
         Integer foundKey;
         foundKey = nodeAddressMap.floorKey(filehash); //FloorKey returns a key-value mapping associated with the greatest key less than or equal to the given key, or null if there is no such key.
         if(foundKey == null){
@@ -104,13 +122,13 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         return nodeAddressMap.get(Util.hash(name));
     }
 
-    public void printTreemap() {
+    private void printTreemap() {
         for(Map.Entry<Integer, InetSocketAddress> entry : nodeAddressMap.entrySet()){
             System.out.println("Key: "+entry.getKey()+". Value: "+entry.getValue());
         }
     }
 
-    public void removeNodeByName(String name) {
+    private void removeNodeByName(String name) {
         nodeAddressMap.remove(Util.hash(name));
     }
 
@@ -137,6 +155,16 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public int getNumberOfNodes() {
         return nodeAddressMap.size();
+    }
+
+    public int getPrevHash(int hash) {
+        // TODO: fixen
+        return hash;
+    }
+
+    public int getNextHash(int hash) {
+        // TODO: fixen
+        return hash;
     }
 
     @SuppressWarnings("unchecked")

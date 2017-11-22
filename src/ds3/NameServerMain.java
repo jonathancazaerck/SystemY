@@ -1,16 +1,22 @@
 package ds3;
 
-import java.rmi.AlreadyBoundException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 
 public class NameServerMain {
     public static void main(String[] args) {
-        try{
-            new NameServer();
-            System.out.println("NameServer ready.");
+        System.setProperty("java.net.preferIPv4Stack", "true");
+
+
+        try {
+            InetAddress ip = InetAddress.getByName(args[0]);
+
+            NameServer nameServer = new NameServer(ip);
+            nameServer.start();
         } catch (RemoteException e) {
+            e.printStackTrace();
+        } catch (UnknownHostException e) {
             e.printStackTrace();
         }
     }
