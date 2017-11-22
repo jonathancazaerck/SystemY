@@ -11,6 +11,12 @@
   - naam
   - path
   
+## Genereren van JAR door gebruik te maken van Gradle
+```bash
+graddle idea
+graddle assemble
+```
+  
 ## RMIregistry uitvoeren
 Het is belangrijk om RMIregistry in de juiste map uit te voeren!
 
@@ -22,11 +28,11 @@ rmiregistry
 ## Nameserver uitvoeren
 
 ```bash
-java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/nameserver_jar/nameserver.jar
+java -jar build/libs/nameserver.jar <localhost/IP>
 ```
 
 ## ds3.Node uitvoeren
 
 ```bash
-java -jar -Djava.net.preferIPv4Stack=true -Djava.rmi.server.hostname=<rmi server ip> out/artifacts/node_jar/node.jar <hostname> <localhost/IP> <poortnummer>
+java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
 ```
