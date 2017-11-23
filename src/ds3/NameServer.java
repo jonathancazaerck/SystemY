@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, LifecycleHooks {
-    private TreeMap<Integer, InetSocketAddress> nodeAddressMap;
+    private TreeMap<Integer, InetSocketAddress> nodeHashAddressMap;
     private InetAddress ip;
 
     private ArrayList<Runnable> onReadyRunnables;
@@ -36,7 +36,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
-        this.nodeAddressMap = new TreeMap<Integer, InetSocketAddress>();
+        this.nodeHashAddressMap = new TreeMap<Integer, InetSocketAddress>();
         this.onReadyRunnables = new ArrayList<Runnable>();
         this.onShutdownRunnables = new ArrayList<Runnable>();
         this.isShuttingDown = false;
@@ -134,46 +134,46 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     private void registerNodeByName(String name, InetSocketAddress address) throws ExistingNodeException {
         Integer hash = Util.hash(name);
-        if(nodeAddressMap.containsKey(hash)) {
+        if(nodeHashAddressMap.containsKey(hash)) {
             throw new ExistingNodeException(name);
         } else {
             log("Registered node " + name + " with address " + address.toString());
-            nodeAddressMap.put(hash, address);
+            nodeHashAddressMap.put(hash, address);
         }
     }
 
     private InetSocketAddress getAddressToReplicateTo(Integer filehash){
         Integer foundKey;
-        foundKey = nodeAddressMap.floorKey(filehash); //FloorKey returns a key-value mapping associated with the greatest key less than or equal to the given key, or null if there is no such key.
+        foundKey = nodeHashAddressMap.floorKey(filehash); //FloorKey returns a key-value mapping associated with the greatest key less than or equal to the given key, or null if there is no such key.
         if(foundKey == null){
-            foundKey = nodeAddressMap.lastKey();
+            foundKey = nodeHashAddressMap.lastKey();
         }
-        return nodeAddressMap.get(foundKey);
+        return nodeHashAddressMap.get(foundKey);
     }
 
     public InetSocketAddress getAddressByName(String name) {
-        return nodeAddressMap.get(Util.hash(name));
+        return nodeHashAddressMap.get(Util.hash(name));
     }
 
     private void printTreemap() {
-        for(Map.Entry<Integer, InetSocketAddress> entry : nodeAddressMap.entrySet()){
+        for(Map.Entry<Integer, InetSocketAddress> entry : nodeHashAddressMap.entrySet()){
             log("Key: "+entry.getKey()+". Value: "+entry.getValue());
         }
     }
 
     private void removeNodeByName(String name) {
-        nodeAddressMap.remove(Util.hash(name));
+        nodeHashAddressMap.remove(Util.hash(name));
     }
 
     public InetSocketAddress getAddressByFileName(String fileName) {
-        if (nodeAddressMap.isEmpty()) {
+        if (nodeHashAddressMap.isEmpty()) {
             log("No nodes!");
             return null;
         } else {
             Integer fileNameHash = Util.hash(fileName);
             Integer closestHash = null;
             Integer biggestHash = null;
-            for (Map.Entry<Integer, InetSocketAddress> entry : nodeAddressMap.entrySet()) {
+            for (Map.Entry<Integer, InetSocketAddress> entry : nodeHashAddressMap.entrySet()) {
                 int nodeHash = entry.getKey();
                 int diff = fileNameHash - nodeHash;
                 if (diff < 0 && (biggestHash == null || nodeHash > biggestHash)) {
@@ -182,29 +182,29 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                     closestHash = nodeHash;
                 }
             }
-            return closestHash != null ? nodeAddressMap.get(closestHash) : nodeAddressMap.get(biggestHash);
+            return closestHash != null ? nodeHashAddressMap.get(closestHash) : nodeHashAddressMap.get(biggestHash);
         }
     }
 
     public int getNumberOfNodes() {
-        return nodeAddressMap.size();
+        return nodeHashAddressMap.size();
     }
 
     public int getPrevHash(int hash) {
-        Map.Entry<Integer, InetSocketAddress> prevEntry = nodeAddressMap.lowerEntry(hash);
+        Map.Entry<Integer, InetSocketAddress> prevEntry = nodeHashAddressMap.lowerEntry(hash);
 
         if (prevEntry == null) {
-            return nodeAddressMap.lastKey();
+            return nodeHashAddressMap.lastKey();
         } else {
             return prevEntry.getKey();
         }
     }
 
     public int getNextHash(int hash) {
-        Map.Entry<Integer, InetSocketAddress> nextEntry = nodeAddressMap.higherEntry(hash);
+        Map.Entry<Integer, InetSocketAddress> nextEntry = nodeHashAddressMap.higherEntry(hash);
 
         if (nextEntry == null) {
-            return nodeAddressMap.firstKey();
+            return nodeHashAddressMap.firstKey();
         } else {
             return nextEntry.getKey();
         }
@@ -213,14 +213,15 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     public void exportJSON() {
         JSONObject obj = new JSONObject();
 
-        for(Map.Entry<Integer, InetSocketAddress> entry : nodeAddressMap.entrySet()) {
+        for(Map.Entry<Integer, InetSocketAddress> entry : nodeHashAddressMap.entrySet()) {
             InetSocketAddress address = entry.getValue();
             obj.put(entry.getKey().toString(), address.getHostName()+":"+address.getPort());
         }
 
         File file = new File("tmp/nameserver.json");
         file.mkdirs();
-        try (FileWriter fileWriter = new FileWriter(file)) {
+        try {
+            FileWriter fileWriter = new FileWriter(file);
             fileWriter.write(obj.toJSONString());
             log("Successfully wrote nameserver.json\n");
             log("JSON Object: " + obj);
@@ -240,7 +241,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 String[] v = entry.getValue().split(":");
                 InetAddress ip = InetAddress.getByName(v[0]);
                 int port = Integer.parseInt(v[1]);
-                nodeAddressMap.put(Integer.parseInt(entry.getKey()), new InetSocketAddress(ip, port));
+                nodeHashAddressMap.put(Integer.parseInt(entry.getKey()), new InetSocketAddress(ip, port));
             }
         } catch (IOException e) {
             e.printStackTrace();

@@ -66,7 +66,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         InetAddress nameServerIp = listenForNameServerHello(address);
 
         log("Locating registry at " + nameServerIp.toString());
-        registry = LocateRegistry.getRegistry(nameServerIp.getHostAddress());
+        registry = LocateRegistry.getRegistry(nameServerIp.getHostAddress(), Constants.REGISTRY_PORT);
         log("Located registry at " + nameServerIp.toString());
         NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
 
@@ -100,6 +100,8 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
 
         log("Running ready hooks for node " + this.name + " with registry name " + registryName);
         onReadyRunnables.forEach(Runnable::run);
+
+        replicateFiles();
     }
 
     private void sendNodeHello(String name, InetSocketAddress address) throws IOException {
@@ -194,9 +196,12 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         }
     }
 
-    public  void replicateFiles() {
-        File dir = new File("nodeOwnFiles");
-        File[] directoryListing = dir.listFiles();
+    public void replicateFiles() {
+        File localFilesDir = new File("tmp/files/" + name + "/local");
+        File replicatedFilesDir = new File("tmp/files/" + name + "/replicated");
+        localFilesDir.mkdirs();
+        replicatedFilesDir.mkdirs();
+        File[] directoryListing = localFilesDir.listFiles();
 
         int idToDupl = 0;
         InetAddress ipToDupl;
@@ -210,8 +215,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
                 String name =  child.getName();
                 int hash = Util.hash(name);
                 //rmi naar nameserver om node te bekomen waarvan id kleiner is dan de hash van het bestand (kopiëren naar 'idToDupl')
-                if(idToDupl == hash){
-                    idToDupl = prevNodeHash;
+                if(idToDupl == hash) idToDupl = prevNodeHash;
                     //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
 
 //                    Socket socket = new Socket(ipToDupl,portToDupl);
@@ -223,9 +227,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
 //                    }catch (IOException e) {
 //                        e.printStackTrace();
 //                    }
-                }
             }
-
         }
     }
 

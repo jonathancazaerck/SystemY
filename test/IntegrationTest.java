@@ -83,9 +83,9 @@ class IntegrationTest {
 
     @Test
     void testTwoNodes() throws RemoteException, UnknownHostException, InterruptedException {
-        nameServer.onReady(() -> eliasThread.start());
+        nameServer.onReady(eliasThread::start);
 
-        elias.onReady(() -> hansThread.start());
+        elias.onReady(hansThread::start);
 
         hans.onReady(() -> {
             assertEquals(elias.getHash(), hans.getPrevNodeHash());
@@ -158,23 +158,20 @@ class IntegrationTest {
                 map.put(node.getHash(), node);
             }
 
-            Node node = elias;
+            for(Node initialNode : nodes) {
+                Node node = initialNode;
+                for (int i = 0; i <= 3; i++) {
+                    node = map.get(node.getPrevNodeHash());
+                }
 
-            for(int i = 0; i <= 3; i++) {
-                System.out.println("Loop: " + map.get(node.getPrevNodeHash()).getName() + " <- " + node.getName());
-                node = map.get(node.getPrevNodeHash());
+                assertEquals(node, initialNode);
+
+                for (int i = 0; i <= 3; i++) {
+                    node = map.get(node.getNextNodeHash());
+                }
+
+                assertEquals(node, initialNode);
             }
-
-            System.out.println("prev looped: " + node.getName());
-            assertEquals(node, elias);
-
-            for(int i = 0; i <= 3; i++) {
-                System.out.println("Loop: " +  node.getName() + " -> " + map.get(node.getNextNodeHash()).getName());
-                node = map.get(node.getNextNodeHash());
-            }
-
-            System.out.println("next looped: " + node.getName());
-            assertEquals(node, elias);
 
             nameServer.shutdown();
         });
