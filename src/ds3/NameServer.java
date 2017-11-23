@@ -4,53 +4,81 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
+import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class NameServer extends UnicastRemoteObject implements NameServerOperations {
+public class NameServer extends UnicastRemoteObject implements NameServerOperations, LifecycleHooks {
     private TreeMap<Integer, InetSocketAddress> nodeAddressMap;
     private InetAddress ip;
+
+    private ArrayList<Runnable> onReadyRunnables;
+    private ArrayList<Runnable> onShutdownRunnables;
+
+    private MulticastSocket multicastSocket;
+
+    private boolean isShuttingDown;
+
+    private Registry registry;
 
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
         this.nodeAddressMap = new TreeMap<Integer, InetSocketAddress>();
+        this.onReadyRunnables = new ArrayList<Runnable>();
+        this.onShutdownRunnables = new ArrayList<Runnable>();
+        this.isShuttingDown = false;
     }
 
-    public void start() {
-        Registry registry;
-        try {
-            System.out.println("Creating registry");
-            registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT);
-            System.out.println("Created registry");
+    public void start() throws IOException, AlreadyBoundException, ParseException, UnknownMessageException, ExistingNodeException {
+        System.setProperty("java.net.preferIPv4Stack", "true");
 
-            System.out.println("Binding this to registry");
-            registry.bind("NameServer", this);
-            System.out.println("Bound this to registry");
+        log("Creating registry");
+        registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT);
+        log("Created registry");
 
-            InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
-            MulticastSocket multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
-            multicastSocket.joinGroup(multicastIp);
+        log("Binding this to registry");
+        registry.bind("NameServer", this);
+        log("Bound this to registry");
 
-            System.out.println("Ready to receive multicasts");
+        InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
+        multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
+        multicastSocket.joinGroup(multicastIp);
 
-            while(true) {
-                byte[] buffer = new byte[1000];
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+        log("Ready to receive multicasts");
+
+        log("Running ready hooks");
+        onReadyRunnables.forEach(Runnable::run);
+
+        while(!this.isShuttingDown) {
+            byte[] buffer = new byte[1000];
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            try {
                 multicastSocket.receive(packet);
-
                 handleMulticastPacket(packet);
+            } catch (IOException e) {
+                log("Closed socket, stopping");
             }
+        }
+
+        onShutdownRunnables.forEach(Runnable::run);
+    }
+
+    public void startWithoutExceptions() {
+        try {
+            start();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (AlreadyBoundException e) {
@@ -64,10 +92,10 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
-    private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, ExistingNodeException {
+    private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException {
         String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
 
-        System.out.println("Received message: " + msg);
+        log("Received message: " + msg);
 
         JSONObject obj = (JSONObject) JSONValue.parseWithException(msg + "\n");
 
@@ -80,18 +108,23 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 int nodePort = ((Long) obj.get("port")).intValue();
                 InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort);
 
-
-                this.registerNodeByName(nodeName, nodeAddress);
+                try {
+                    this.registerNodeByName(nodeName, nodeAddress);
+                } catch (ExistingNodeException e) {
+                    log(e.getMessage());
+                    return;
+                }
 
                 JSONObject responseMsg = new JSONObject();
                 responseMsg.put("type", "nameserver_hello");
-                responseMsg.put("ip", "localhost");
+                responseMsg.put("ip", this.ip.getHostName());
                 String responseStr = responseMsg.toJSONString();
 
                 DatagramSocket datagramSocket = new DatagramSocket();
 
-                System.out.println("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
+                log("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
                 datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
+                datagramSocket.close();
 
                 break;
             default:
@@ -104,7 +137,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         if(nodeAddressMap.containsKey(hash)) {
             throw new ExistingNodeException(name);
         } else {
-            System.out.println("Registered node " + name + " with address " + address.toString());
+            log("Registered node " + name + " with address " + address.toString());
             nodeAddressMap.put(hash, address);
         }
     }
@@ -124,7 +157,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     private void printTreemap() {
         for(Map.Entry<Integer, InetSocketAddress> entry : nodeAddressMap.entrySet()){
-            System.out.println("Key: "+entry.getKey()+". Value: "+entry.getValue());
+            log("Key: "+entry.getKey()+". Value: "+entry.getValue());
         }
     }
 
@@ -134,7 +167,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public InetSocketAddress getAddressByFileName(String fileName) {
         if (nodeAddressMap.isEmpty()) {
-            System.out.println("No nodes!");
+            log("No nodes!");
             return null;
         } else {
             Integer fileNameHash = Util.hash(fileName);
@@ -158,30 +191,25 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     }
 
     public int getPrevHash(int hash) {
-        Map.Entry<Integer, InetSocketAddress> prev = nodeAddressMap.lowerEntry(hash);
+        Map.Entry<Integer, InetSocketAddress> prevEntry = nodeAddressMap.lowerEntry(hash);
 
-        if (prev==null) {
-            System.out.println("Last: "+nodeAddressMap.lastKey());
+        if (prevEntry == null) {
             return nodeAddressMap.lastKey();
+        } else {
+            return prevEntry.getKey();
         }
-
-        System.out.println("Prev: "+prev.getKey());
-        return prev.getKey();
     }
 
     public int getNextHash(int hash) {
-        Map.Entry<Integer, InetSocketAddress> next = nodeAddressMap.higherEntry(hash);
+        Map.Entry<Integer, InetSocketAddress> nextEntry = nodeAddressMap.higherEntry(hash);
 
-        if (next==null) {
-            System.out.println("First: "+nodeAddressMap.firstKey());
+        if (nextEntry == null) {
             return nodeAddressMap.firstKey();
+        } else {
+            return nextEntry.getKey();
         }
-
-        System.out.println("Next: "+next.getKey());
-        return next.getKey();
     }
 
-    @SuppressWarnings("unchecked")
     public void exportJSON() {
         JSONObject obj = new JSONObject();
 
@@ -190,16 +218,17 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
             obj.put(entry.getKey().toString(), address.getHostName()+":"+address.getPort());
         }
 
-        try (FileWriter file = new FileWriter("nameserver.json")) {
-            file.write(obj.toJSONString());
-            System.out.println("Successfully Copied JSON Object to ds3.File...");
-            System.out.println("\nJSON Object: " + obj);
+        File file = new File("tmp/nameserver.json");
+        file.mkdirs();
+        try (FileWriter fileWriter = new FileWriter(file)) {
+            fileWriter.write(obj.toJSONString());
+            log("Successfully wrote nameserver.json\n");
+            log("JSON Object: " + obj);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    @SuppressWarnings("unchecked")
     public void importJSON() {
         try {
             String str = new String(Files.readAllBytes(Paths.get("nameserver.json")));
@@ -207,7 +236,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
             for(Object objEntry : obj.entrySet()) {
                 Map.Entry<String, String> entry = (Map.Entry<String, String>) objEntry;
-                System.out.println(entry);
+                log(entry.toString());
                 String[] v = entry.getValue().split(":");
                 InetAddress ip = InetAddress.getByName(v[0]);
                 int port = Integer.parseInt(v[1]);
@@ -218,5 +247,29 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         } catch (ParseException e) {
             e.printStackTrace();
         }
+    }
+
+    public void shutdown() {
+        this.isShuttingDown = true;
+        this.multicastSocket.close();
+        try {
+            UnicastRemoteObject.unexportObject(this.registry, true);
+        } catch (NoSuchObjectException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onReady(Runnable runnable) {
+        onReadyRunnables.add(runnable);
+    }
+
+    @Override
+    public void onShutdown(Runnable runnable) {
+        onShutdownRunnables.add(runnable);
+    }
+
+    private void log(String str) {
+        System.out.println("[nameserver] " + str);
     }
 }

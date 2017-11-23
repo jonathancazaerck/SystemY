@@ -23,10 +23,10 @@ dependencies {
     // TestNG is also supported by the Gradle Test task. Just change the
     // testCompile dependency to testCompile 'org.testng:testng:6.8.1' and add
     // 'test.useTestNG()' to your build script.
-    testCompile 'junit:junit:4.12'
     testCompile 'org.junit.jupiter:junit-jupiter-api:5.0.2'
     testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.0.2'
     testCompile 'org.junit.platform:junit-platform-runner:1.0.2'
+    testCompile 'org.apiguardian:apiguardian-api:1.0.0'
 
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
 }
@@ -71,8 +71,8 @@ task nodeJarTask(type: Jar) {
 
     manifest {
         attributes(
-                "Main-Class": "ds3.NodeMain",
-                "Class-Path": configurations.compile.collect { it.getName() }.join(' ')
+                'Main-Class': 'ds3.NodMain',
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
         )
     }
 }
@@ -89,12 +89,24 @@ task nameserverJarTask(type: Jar) {
 
     manifest {
         attributes(
-                "Main-Class": "ds3.NameServerMain",
-                "Class-Path": configurations.compile.collect { it.getName() }.join(' ')
+                'Main-Class': 'ds3.NameServerMain',
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
         )
     }
 }
 
 artifacts {
     archives nameserverJarTask, nodeJarTask
+}
+
+test {
+    testLogging {
+        showStandardStreams = true
+        exceptionFormat = 'full'
+    }
+
+    reports {
+        junitXml.enabled = false
+        html.enabled = true
+    }
 }

@@ -1,6 +1,10 @@
 package ds3;
 
+import org.json.simple.parser.ParseException;
+
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
@@ -29,6 +33,16 @@ public class NodeMain {
 
             node.start();
         } catch (RemoteException e) {
+            e.printStackTrace();
+        } catch (AlreadyBoundException e) {
+            e.printStackTrace();
+        } catch (NotBoundException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (UnknownMessageException e) {
             e.printStackTrace();
         }
     }

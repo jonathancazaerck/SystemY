@@ -8,6 +8,6 @@ public class Util {
     }
 
     public static String getNodeRegistryName(int hash) {
-        return "Node:0x" + String.format("%04x", hash);
+        return "Node:" + hash;
     }
 }

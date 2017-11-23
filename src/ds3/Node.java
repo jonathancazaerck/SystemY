@@ -12,8 +12,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 
-public class Node extends UnicastRemoteObject implements NodeOperations {
+public class Node extends UnicastRemoteObject implements NodeOperations, LifecycleHooks {
     private InetSocketAddress address;
     private String name;
     private int hash;
@@ -23,11 +24,16 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
 
     private Registry registry;
 
+    private ArrayList<Runnable> onReadyRunnables;
+    private ArrayList<Runnable> onShutdownRunnables;
+
     public Node(String name, InetSocketAddress address) throws RemoteException {
         super();
         this.name = name;
         this.address = address;
         this.hash = Util.hash(name);
+        this.onReadyRunnables = new ArrayList<Runnable>();
+        this.onShutdownRunnables = new ArrayList<Runnable>();
     }
 
     public InetSocketAddress getAddress() {
@@ -38,73 +44,93 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
         return name;
     }
 
-    public void start() {
-        try {
-            System.out.println("Multicasting node hello: " + name + " at " + address.toString());
-            sendNodeHello(name, address);
+    public int getHash() {
+        return hash;
+    }
 
-            System.out.println("Listening for nameserver hello");
-            InetAddress nameServerIp = listenForNameServerHello(address);
+    public int getPrevNodeHash() {
+        return prevNodeHash;
+    }
 
-            System.out.println("Locating registry at " + nameServerIp.toString());
-            registry = LocateRegistry.getRegistry(nameServerIp.getHostAddress());
-            System.out.println("Located registry at " + nameServerIp.toString());
-            NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
+    public int getNextNodeHash() {
+        return nextNodeHash;
+    }
 
-            int amount = nameServer.getNumberOfNodes();
-            System.out.println("Number of nodes: " + amount);
+    public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException {
+        System.setProperty("java.net.preferIPv4Stack", "true");
 
-            if (amount == 1) {
-                this.prevNodeHash = this.hash;
-                this.nextNodeHash = this.hash;
-            } else if (amount == 2) {
-                this.prevNodeHash = nameServer.getPrevHash(this.hash);
-                this.nextNodeHash = prevNodeHash;
+        log("Multicasting node hello: " + name + " at " + address.toString());
+        sendNodeHello(name, address);
 
-                Node prevNode = (Node) registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
+        log("Listening for nameserver hello");
+        InetAddress nameServerIp = listenForNameServerHello(address);
 
-                prevNode.onNewNeighbour(this.hash);
-            } else {
-                this.prevNodeHash = nameServer.getPrevHash(this.hash);
-                this.nextNodeHash = nameServer.getNextHash(this.hash);
+        log("Locating registry at " + nameServerIp.toString());
+        registry = LocateRegistry.getRegistry(nameServerIp.getHostAddress());
+        log("Located registry at " + nameServerIp.toString());
+        NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
 
-                Node prevNode = (Node) registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
-                Node nextNode = (Node) registry.lookup(Util.getNodeRegistryName(this.nextNodeHash));
+        int amount = nameServer.getNumberOfNodes();
+        log("Number of nodes: " + amount);
 
-                prevNode.onNewNeighbour(this.hash);
-                nextNode.onNewNeighbour(this.hash);
-            }
+        if (amount == 1) {
+            this.prevNodeHash = this.hash;
+            this.nextNodeHash = this.hash;
+        } else if (amount == 2) {
+            this.nextNodeHash = this.prevNodeHash = nameServer.getPrevHash(this.hash);
 
-            String registryName = Util.getNodeRegistryName(hash);
-            System.out.println("Binding this to registry with name: " + registryName);
-            registry.bind(registryName, this);
-            System.out.println("Bound to registry");
+            NodeOperations prevNode = (NodeOperations) registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        } catch (NotBoundException e) {
-            e.printStackTrace();
-        } catch (AlreadyBoundException e) {
-            e.printStackTrace();
-        } catch (UnknownMessageException e) {
-            e.printStackTrace();
+            prevNode.notifyNewNeighbour(this.hash);
+        } else {
+            this.prevNodeHash = nameServer.getPrevHash(this.hash);
+            this.nextNodeHash = nameServer.getNextHash(this.hash);
+
+            NodeOperations prevNode = (NodeOperations) registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
+            NodeOperations nextNode = (NodeOperations) registry.lookup(Util.getNodeRegistryName(this.nextNodeHash));
+
+            prevNode.notifyNewNeighbour(this.hash);
+            nextNode.notifyNewNeighbour(this.hash);
         }
+
+        String registryName = Util.getNodeRegistryName(hash);
+        log("Binding this to registry: " + registryName);
+        registry.bind(registryName, this);
+        log("Bound to registry: " + registryName);
+
+        log("Running ready hooks for node " + this.name + " with registry name " + registryName);
+        onReadyRunnables.forEach(Runnable::run);
     }
 
     private void sendNodeHello(String name, InetSocketAddress address) throws IOException {
-        JSONObject messageObj = new JSONObject();
-        messageObj.put("type", "node_hello");
-        messageObj.put("name", name);
-        messageObj.put("ip", address.getHostString());
-        messageObj.put("port", address.getPort());
-            String msg = messageObj.toJSONString();
+        JSONObject msg = new JSONObject();
+        msg.put("type", "node_hello");
+        msg.put("name", name);
+        msg.put("ip", address.getHostString());
+        msg.put("port", address.getPort());
+        String msgStr = msg.toJSONString();
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
         socket.joinGroup(multicastIp);
-        DatagramPacket hi = new DatagramPacket(msg.getBytes(), msg.length(), multicastIp, Constants.MULTICAST_PORT);
-        socket.send(hi);
+        DatagramPacket msgPacket = new DatagramPacket(msgStr.getBytes(), msgStr.length(), multicastIp, Constants.MULTICAST_PORT);
+        socket.send(msgPacket);
+        socket.close();
+    }
+
+    public void startWithoutExceptions() {
+        try {
+            start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (AlreadyBoundException e) {
+            e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (UnknownMessageException e) {
+            e.printStackTrace();
+        } catch (NotBoundException e) {
+            e.printStackTrace();
+        }
     }
 
     private InetAddress listenForNameServerHello(InetSocketAddress address) throws IOException, ParseException, UnknownMessageException {
@@ -115,44 +141,52 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
         datagramSocket.receive(packet);
 
         String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
-        System.out.println(msg);
         JSONObject obj = (JSONObject) JSONValue.parseWithException(msg + "\n");
         String msgType = (String) obj.get("type");
+
+        datagramSocket.close();
 
         switch (msgType) {
             case "nameserver_hello":
                 InetAddress nameServerIp = InetAddress.getByName((String) obj.get("ip"));
-                System.out.println("Received nameserver hello: " + nameServerIp.toString());
+                log("Received nameserver hello: " + nameServerIp.toString());
                 return nameServerIp;
             default:
                 throw new UnknownMessageException(msgType, msg);
         }
     }
 
-    public void onNewNeighbour(int newNodeHash) {
-         boolean isFirstNode = hash < prevNodeHash;
-         boolean isLastNode = nextNodeHash < hash;
+    public void notifyNewNeighbour(int newNodeHash) {
+        boolean isAlone = hash == prevNodeHash;
+        boolean isFirstNode = hash < prevNodeHash;
+        boolean isLastNode = nextNodeHash < hash;
 
-         if ((hash < newNodeHash && newNodeHash < nextNodeHash) || (isLastNode && (newNodeHash < nextNodeHash))) {
-             this.nextNodeHash = newNodeHash;
-         }
-         // can be both prev and next
-         if ((prevNodeHash < newNodeHash && newNodeHash < hash) || (isFirstNode && (prevNodeHash < newNodeHash))) {
-             this.prevNodeHash = newNodeHash;
-         }
+        log("Getting notified of new neighbour: this = " + hash + ", next = " + nextNodeHash + ", prev = " + prevNodeHash + ", new = " + newNodeHash);
+
+        if (isAlone || (hash < newNodeHash && newNodeHash < nextNodeHash) || (isLastNode && (hash < newNodeHash || newNodeHash < nextNodeHash))) {
+            this.nextNodeHash = newNodeHash;
+            log(newNodeHash + " is new next");
+        }
+        // can be both prev and next
+        if (isAlone || (prevNodeHash < newNodeHash && newNodeHash < hash) || (isFirstNode && (prevNodeHash < newNodeHash || newNodeHash < hash))) {
+            this.prevNodeHash = newNodeHash;
+            log(newNodeHash + " is new prev");
+        }
     }
 
     public void shutdown() throws RemoteException, NotBoundException {
-        Node prevNode = (Node) this.registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
-        Node nextNode = (Node) this.registry.lookup(Util.getNodeRegistryName(this.nextNodeHash));
+        NodeOperations prevNode = (NodeOperations) this.registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
+        NodeOperations nextNode = (NodeOperations) this.registry.lookup(Util.getNodeRegistryName(this.nextNodeHash));
 
-        prevNode.onNeighbourShutdown(false, this.nextNodeHash);
-        nextNode.onNeighbourShutdown(true, this.prevNodeHash);
+        prevNode.notifyNeighbourShutdown(false, this.nextNodeHash);
+        nextNode.notifyNeighbourShutdown(true, this.prevNodeHash);
 
         this.registry.unbind(Util.getNodeRegistryName(this.hash));
+
+        onShutdownRunnables.forEach(Runnable::run);
     }
 
-    public void onNeighbourShutdown(boolean prev, int newNeighbourHash) {
+    public void notifyNeighbourShutdown(boolean prev, int newNeighbourHash) {
         if (prev) {
             this.nextNodeHash = newNeighbourHash;
         } else {
@@ -193,5 +227,19 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
             }
 
         }
+    }
+
+    @Override
+    public void onReady(Runnable runnable) {
+        onReadyRunnables.add(runnable);
+    }
+
+    @Override
+    public void onShutdown(Runnable runnable) {
+        onShutdownRunnables.add(runnable);
+    }
+
+    private void log(String str) {
+        System.out.println("[" + name + "@" + hash + "] " + str);
     }
 }
