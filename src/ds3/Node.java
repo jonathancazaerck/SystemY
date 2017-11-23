@@ -59,11 +59,13 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
     public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
+        DatagramSocket datagramSocket = openNameServerHelloSocket(address);
+
         log("Multicasting node hello: " + name + " at " + address.toString());
         sendNodeHello(name, address);
 
         log("Listening for nameserver hello");
-        InetAddress nameServerIp = listenForNameServerHello(address);
+        InetAddress nameServerIp = waitForNameServerHello(datagramSocket);
 
         log("Locating registry at " + nameServerIp.toString());
         registry = LocateRegistry.getRegistry(nameServerIp.getHostAddress(), Constants.REGISTRY_PORT);
@@ -119,26 +121,13 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         socket.close();
     }
 
-    public void startWithoutExceptions() {
-        try {
-            start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (AlreadyBoundException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        } catch (UnknownMessageException e) {
-            e.printStackTrace();
-        } catch (NotBoundException e) {
-            e.printStackTrace();
-        }
+    private DatagramSocket openNameServerHelloSocket(InetSocketAddress address) throws SocketException {
+        return new DatagramSocket(address.getPort());
     }
 
-    private InetAddress listenForNameServerHello(InetSocketAddress address) throws IOException, ParseException, UnknownMessageException {
+    private InetAddress waitForNameServerHello(DatagramSocket datagramSocket) throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[1000];
 
-        DatagramSocket datagramSocket = new DatagramSocket(address.getPort());
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         datagramSocket.receive(packet);
 
@@ -216,17 +205,17 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
                 int hash = Util.hash(name);
                 //rmi naar nameserver om node te bekomen waarvan id kleiner is dan de hash van het bestand (kopiëren naar 'idToDupl')
                 if(idToDupl == hash) idToDupl = prevNodeHash;
-                    //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
+                //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
 
-//                    Socket socket = new Socket(ipToDupl,portToDupl);
+//                Socket socket = new Socket(ipToDupl,portToDupl);
 //
-//                    try{
-//                        OutputStream out = Socket.getOutputStream();
-//                        FileInputStream fis = new FileInputStream();
-//                        BufferedInputStream bfis = new BufferedInputStream(fis);
-//                    }catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
+//                try{
+//                    OutputStream out = Socket.getOutputStream();
+//                    FileInputStream fis = new FileInputStream();
+//                    BufferedInputStream bfis = new BufferedInputStream(fis);
+//                }catch (IOException e) {
+//                    e.printStackTrace();
+//                }
             }
         }
     }

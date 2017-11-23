@@ -76,22 +76,6 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         onShutdownRunnables.forEach(Runnable::run);
     }
 
-    public void startWithoutExceptions() {
-        try {
-            start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (AlreadyBoundException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        } catch (UnknownMessageException e) {
-            e.printStackTrace();
-        } catch (ExistingNodeException e) {
-            e.printStackTrace();
-        }
-    }
-
     private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException {
         String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
 
