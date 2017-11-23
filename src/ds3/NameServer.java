@@ -118,8 +118,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         return nodeAddressMap.get(foundKey);
     }
 
-    public InetSocketAddress getAddressByName(String name) {
-        return nodeAddressMap.get(Util.hash(name));
+    public InetSocketAddress getAddressByHash(int hash) {
+        return nodeAddressMap.get(hash);
     }
 
     private void printTreemap() {

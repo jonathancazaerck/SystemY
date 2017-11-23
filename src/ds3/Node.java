@@ -6,6 +6,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -160,38 +161,60 @@ public class Node extends UnicastRemoteObject implements NodeOperations {
         }
     }
 
-    public  void replicateFiles() {
+    public  void replicateFiles() throws IOException, NotBoundException {
         File dir = new File("nodeOwnFiles");
         File[] directoryListing = dir.listFiles();
 
-        int idToDupl = 0;
-        InetAddress ipToDupl;
-        int portToDupl;
+        int hashToDupl;
+        InetSocketAddress addressToDupl;
 
         int count;
         byte[] buffer = new byte[(int) Math.pow(2, 10)];
+
+
 
         if (directoryListing != null) {
             for (File child : directoryListing) {
                 String name =  child.getName();
                 int hash = Util.hash(name);
-                //rmi naar nameserver om node te bekomen waarvan id kleiner is dan de hash van het bestand (kopiëren naar 'idToDupl')
-                if(idToDupl == hash){
-                    idToDupl = prevNodeHash;
-                    //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
 
-//                    Socket socket = new Socket(ipToDupl,portToDupl);
-//
-//                    try{
-//                        OutputStream out = Socket.getOutputStream();
-//                        FileInputStream fis = new FileInputStream();
-//                        BufferedInputStream bfis = new BufferedInputStream(fis);
-//                    }catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
+                NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
+                hashToDupl = nameServer.getPrevHash(hash);
+
+                if(hashToDupl == hash) {hashToDupl = prevNodeHash;}
+                addressToDupl = nameServer.getAddressByHash(hashToDupl);
+
+
+                Socket socket = new Socket(addressToDupl.getAddress(),addressToDupl.getPort());
+
+                try{
+                    OutputStream out = socket.getOutputStream();
+                    FileInputStream fis = new FileInputStream(child);
+                    BufferedInputStream bfis = new BufferedInputStream(fis);
+
+                    long fileSize = fis.getChannel().size();
+
+                    JSONObject messageObj = new JSONObject();
+                    messageObj.put("type", "file_metadata");
+                    messageObj.put("name", name);
+                    messageObj.put("size", fileSize);
+
+                    ByteBuffer fileSizeBuffer = ByteBuffer.allocate(Long.BYTES);
+                    fileSizeBuffer.putLong(fileSize);
+                    out.write(fileSizeBuffer.array(), 0, Long.BYTES);
+
+                    while ((count = bfis.read(buffer)) >= 0) {
+                        out.write(buffer, 0, count);
+                        out.flush();
+                    }
+
+                    out.close();
+                    bfis.close();
+                    System.out.println("File is transferred!");
+                }catch (IOException e) {
+                    e.printStackTrace();
                 }
             }
-
         }
     }
 }
