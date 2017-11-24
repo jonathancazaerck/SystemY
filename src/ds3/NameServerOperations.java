@@ -5,7 +5,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 public interface NameServerOperations extends Remote {
-    InetSocketAddress getAddressByName(String name) throws RemoteException;
+    InetSocketAddress getAddressByHash(int hash) throws RemoteException;
     InetSocketAddress getAddressByFileName(String fileName) throws RemoteException;
     int getNumberOfNodes() throws RemoteException;
     int getPrevHash(int hash) throws RemoteException;

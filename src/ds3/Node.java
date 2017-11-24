@@ -6,6 +6,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -26,6 +27,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
 
     private ArrayList<Runnable> onReadyRunnables;
     private ArrayList<Runnable> onShutdownRunnables;
+    private ArrayList<Runnable> onFilesReplicatedRunnables;
 
     public Node(String name, InetSocketAddress address) throws RemoteException {
         super();
@@ -34,6 +36,7 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         this.hash = Util.hash(name);
         this.onReadyRunnables = new ArrayList<Runnable>();
         this.onShutdownRunnables = new ArrayList<Runnable>();
+        this.onFilesReplicatedRunnables = new ArrayList<Runnable>();
     }
 
     public InetSocketAddress getAddress() {
@@ -104,6 +107,10 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         onReadyRunnables.forEach(Runnable::run);
 
         replicateFiles();
+
+        onFilesReplicatedRunnables.forEach(Runnable::run);
+
+        listenForFiles();
     }
 
     private void sendNodeHello(String name, InetSocketAddress address) throws IOException {
@@ -185,39 +192,64 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
         }
     }
 
-    public void replicateFiles() {
+    public void replicateFiles() throws IOException, NotBoundException {
         File localFilesDir = new File("tmp/files/" + name + "/local");
         File replicatedFilesDir = new File("tmp/files/" + name + "/replicated");
         localFilesDir.mkdirs();
         replicatedFilesDir.mkdirs();
-        File[] directoryListing = localFilesDir.listFiles();
 
-        int idToDupl = 0;
-        InetAddress ipToDupl;
-        int portToDupl;
+        File[] localFiles = localFilesDir.listFiles();
+        if(localFiles == null) return;
 
         int count;
         byte[] buffer = new byte[(int) Math.pow(2, 10)];
 
-        if (directoryListing != null) {
-            for (File child : directoryListing) {
-                String name =  child.getName();
-                int hash = Util.hash(name);
-                //rmi naar nameserver om node te bekomen waarvan id kleiner is dan de hash van het bestand (kopiëren naar 'idToDupl')
-                if(idToDupl == hash) idToDupl = prevNodeHash;
-                //rmi naar nameserver om ip/port van node te bekomen (kopiëren naar 'ipToDupl' en 'portToDupl')
+        NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
 
-//                Socket socket = new Socket(ipToDupl,portToDupl);
-//
-//                try{
-//                    OutputStream out = Socket.getOutputStream();
-//                    FileInputStream fis = new FileInputStream();
-//                    BufferedInputStream bfis = new BufferedInputStream(fis);
-//                }catch (IOException e) {
-//                    e.printStackTrace();
-//                }
+        for (File child : localFiles) {
+            String name =  child.getName();
+            int fileHash = Util.hash(name);
+
+            int nodeHashToDupl = nameServer.getPrevHash(fileHash);
+
+            if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
+
+            InetSocketAddress addressToDupl = nameServer.getAddressByHash(nodeHashToDupl);
+
+            Socket socket = new Socket(addressToDupl.getAddress(), addressToDupl.getPort());
+
+            try{
+                OutputStream out = socket.getOutputStream();
+                FileInputStream fis = new FileInputStream(child);
+                BufferedInputStream bfis = new BufferedInputStream(fis);
+
+                long fileSize = fis.getChannel().size();
+
+                JSONObject metadataObj = new JSONObject();
+                metadataObj.put("type", "file_metadata");
+                metadataObj.put("name", name);
+                metadataObj.put("size", fileSize);
+
+                ByteBuffer metadataBuffer = ByteBuffer.allocate(200);
+                metadataBuffer.put(metadataObj.toJSONString().getBytes());
+                out.write(metadataBuffer.array(), 0, 200);
+
+                while ((count = bfis.read(buffer)) >= 0) {
+                    out.write(buffer, 0, count);
+                    out.flush();
+                }
+
+                out.close();
+                bfis.close();
+                System.out.println("File is transferred!");
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
+    }
+
+    private void listenForFiles() {
+        
     }
 
     @Override
@@ -228,6 +260,10 @@ public class Node extends UnicastRemoteObject implements NodeOperations, Lifecyc
     @Override
     public void onShutdown(Runnable runnable) {
         onShutdownRunnables.add(runnable);
+    }
+
+    public void onFilesReplicated(Runnable runnable) {
+        onFilesReplicatedRunnables.add(runnable);
     }
 
     private void log(String str) {
