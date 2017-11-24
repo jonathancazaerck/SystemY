@@ -31,6 +31,7 @@ dependencies {
     testCompile 'org.apiguardian:apiguardian-api:1.0.0'
 
     compile 'com.googlecode.json-simple:json-simple:1.1.1'
+    compile 'commons-io:commons-io:2.0.1'
 }
 
 

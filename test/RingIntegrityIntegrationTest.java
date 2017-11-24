@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -17,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
-class IntegrationTest {
+class RingIntegrityIntegrationTest {
 
     private NameServer nameServer;
     private ArrayList<Node> nodes;
@@ -38,10 +39,10 @@ class IntegrationTest {
     private volatile Exception threadException;
 
     @BeforeEach
-    void setUp() throws RemoteException, UnknownHostException {
+    void setUp() throws IOException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
-        Node.setFilesPath(Paths.get("test/fixtures/files"));
+        Node.setFilesPath(Paths.get("fixtures/files"));
 
         nodeThreads = new ArrayList<Thread>();
         nodes = new ArrayList<Node>();
@@ -91,7 +92,7 @@ class IntegrationTest {
 
         elias.onReady(hansThread::start);
 
-        hans.onReady(() -> {
+        hans.onNeighbourChanged(() -> {
             assertEquals(elias.getHash(), hans.getPrevNodeHash());
             assertEquals(elias.getHash(), hans.getNextNodeHash());
 
@@ -99,6 +100,14 @@ class IntegrationTest {
             assertEquals(hans.getHash(), elias.getNextNodeHash());
 
             nameServer.shutdown();
+            try {
+                elias.shutdown();
+                hans.shutdown();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         });
 
         nameServerThread.start();
@@ -111,7 +120,6 @@ class IntegrationTest {
         assertEquals("hans", hans.getName());
     }
 
-    @Disabled
     @Test
     void testThreeNodes() throws InterruptedException {
         nameServer.onReady(eliasThread::start);
@@ -143,7 +151,6 @@ class IntegrationTest {
         nameServerThread.join();
     }
 
-    @Disabled
     @Test
     void testFourNodes() throws InterruptedException {
         nameServer.onReady(jillThread::start);

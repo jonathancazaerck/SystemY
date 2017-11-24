@@ -25,9 +25,9 @@ public class NodeMain {
                         node.shutdown();
                     } catch (RemoteException e) {
                         e.printStackTrace();
-                    } catch (NotBoundException e) {
-                        e.printStackTrace();
                     } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
                 }
@@ -45,6 +45,8 @@ public class NodeMain {
         } catch (IOException e) {
             e.printStackTrace();
         } catch (UnknownMessageException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
     }
