@@ -10,9 +10,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.rmi.AlreadyBoundException;
-import java.rmi.NoSuchObjectException;
-import java.rmi.RemoteException;
+import java.rmi.*;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
@@ -238,8 +236,15 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         this.isShuttingDown = true;
         this.multicastSocket.close();
         try {
+            this.registry.unbind("NameServer");
             UnicastRemoteObject.unexportObject(this.registry, true);
         } catch (NoSuchObjectException e) {
+            e.printStackTrace();
+        } catch (AccessException e) {
+            e.printStackTrace();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        } catch (NotBoundException e) {
             e.printStackTrace();
         }
     }

@@ -7,3 +7,4 @@ ds3.iws
 /build
 /out
 /tmp
+/test/fixtures/files/*/replicated/

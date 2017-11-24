@@ -5,4 +5,5 @@ public class Constants {
     public static int MULTICAST_PORT = 6789;
     public static int DEFAULT_PORT = 6788;
     public static int REGISTRY_PORT = 1099;
+    public static int FILE_METADATA_LENGTH = 200;
 }

@@ -27,6 +27,8 @@ public class NodeMain {
                         e.printStackTrace();
                     } catch (NotBoundException e) {
                         e.printStackTrace();
+                    } catch (IOException e) {
+                        e.printStackTrace();
                     }
                 }
             });

@@ -2,11 +2,13 @@ import ds3.*;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.TreeMap;
@@ -38,6 +40,8 @@ class IntegrationTest {
     @BeforeEach
     void setUp() throws RemoteException, UnknownHostException {
         System.setProperty("java.net.preferIPv4Stack", "true");
+
+        Node.setFilesPath(Paths.get("test/fixtures/files"));
 
         nodeThreads = new ArrayList<Thread>();
         nodes = new ArrayList<Node>();
@@ -107,6 +111,7 @@ class IntegrationTest {
         assertEquals("hans", hans.getName());
     }
 
+    @Disabled
     @Test
     void testThreeNodes() throws InterruptedException {
         nameServer.onReady(eliasThread::start);
@@ -138,6 +143,7 @@ class IntegrationTest {
         nameServerThread.join();
     }
 
+    @Disabled
     @Test
     void testFourNodes() throws InterruptedException {
         nameServer.onReady(jillThread::start);

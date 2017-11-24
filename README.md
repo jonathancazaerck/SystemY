@@ -1,15 +1,13 @@
-# ds3
+[![Build Status](https://travis-ci.org/jonathancazaerck/ds3.svg?branch=replicateFiles)](https://travis-ci.org/jonathancazaerck/ds3)
+
+# System Y
 
 ## Klassen
 
-- ds3.NameServer
-  - bevat een MAP met integer naar IP-adressen
-  - Map opslaan op hdd als JSON (XML als het echt niet anders kan)
-- ds3.Node
-- ds3.File
-  - hash()
-  - naam
-  - path
+- NameServer
+  - bevat een TreeMap die hashes naar IP-adressen mapt
+  - Slaat map op als JSON op harde schijf
+- Node
   
 ## Genereren van JAR
 ```bash
@@ -29,13 +27,13 @@ java -jar build/libs/nameserver.jar <localhost/IP>
 
 De nameserver start ook een RMI registry.
 
-## ds3.Node uitvoeren
+## Node uitvoeren
 
 ```bash
 java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
 ```
 
-## Development
+## Development setup
 
 ```bash
 gradle idea
