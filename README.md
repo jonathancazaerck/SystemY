@@ -11,18 +11,14 @@
   - naam
   - path
   
-## Genereren van JAR door gebruik te maken van Gradle
+## Genereren van JAR
 ```bash
-graddle idea
-graddle assemble
+gradle assemble
 ```
-  
-## RMIregistry uitvoeren
-Het is belangrijk om RMIregistry in de juiste map uit te voeren!
 
+## Tests
 ```bash
-cd out/production/ds3
-rmiregistry
+gradle check
 ```
 
 ## Nameserver uitvoeren
@@ -31,8 +27,16 @@ rmiregistry
 java -jar build/libs/nameserver.jar <localhost/IP>
 ```
 
+De nameserver start ook een RMI registry.
+
 ## ds3.Node uitvoeren
 
 ```bash
 java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
+```
+
+## Development
+
+```bash
+gradle idea
 ```
