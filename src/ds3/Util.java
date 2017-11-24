@@ -13,10 +13,6 @@ public final class Util {
         return Math.abs(str.hashCode()%32768);
     }
 
-    public static String getNodeRegistryName(int hash) {
-        return "Node:" + hash;
-    }
-
     public static JSONObject extractJSONFromPacket(DatagramPacket packet) throws UnsupportedEncodingException, ParseException {
         String msg = new String(packet.getData(), 0, packet.getLength(), "UTF-8");
 

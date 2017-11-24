@@ -36,10 +36,10 @@ class RingIntegrityIntegrationTest {
     private Thread jonathanThread;
     private Thread jillThread;
 
-    private volatile Exception threadException;
+    private volatile Exception asyncException;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() throws IOException, InterruptedException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         Node.setFilesPath(Paths.get("fixtures/files"));
@@ -58,7 +58,7 @@ class RingIntegrityIntegrationTest {
                 System.out.println("Starting nameserver thread: ");
                 nameServer.start();
             } catch (Exception e) {
-                threadException = e;
+                asyncException = e;
             }
         });
         for (Node node : nodes) {
@@ -67,7 +67,7 @@ class RingIntegrityIntegrationTest {
                     System.out.println("Starting node thread: " + node.getName());
                     node.start();
                 } catch (Exception e) {
-                    threadException = e;
+                    asyncException = e;
                 }
             }));
         }
@@ -76,13 +76,15 @@ class RingIntegrityIntegrationTest {
         this.hansThread = nodeThreads.get(nodes.indexOf(hans));
         this.jonathanThread = nodeThreads.get(nodes.indexOf(jonathan));
         this.jillThread = nodeThreads.get(nodes.indexOf(jill));
+
+        Thread.sleep(1000);
     }
 
     @AfterEach
     void checkForThreadException() {
-        if (threadException != null) {
-            threadException.printStackTrace();
-            fail(threadException);
+        if (asyncException != null) {
+            asyncException.printStackTrace();
+            fail(asyncException);
         }
     }
 
@@ -92,21 +94,19 @@ class RingIntegrityIntegrationTest {
 
         elias.onReady(hansThread::start);
 
-        hans.onNeighbourChanged(() -> {
+        hans.onReady(() -> {
             assertEquals(elias.getHash(), hans.getPrevNodeHash());
             assertEquals(elias.getHash(), hans.getNextNodeHash());
 
             assertEquals(hans.getHash(), elias.getPrevNodeHash());
             assertEquals(hans.getHash(), elias.getNextNodeHash());
 
-            nameServer.shutdown();
             try {
+                nameServer.shutdown();
                 elias.shutdown();
                 hans.shutdown();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+            } catch (Exception e) {
+                asyncException = e;
             }
         });
 
@@ -140,7 +140,14 @@ class RingIntegrityIntegrationTest {
                 fail("Ring incomplete");
             }
 
-            nameServer.shutdown();
+            try {
+                nameServer.shutdown();
+                elias.shutdown();
+                hans.shutdown();
+                jonathan.shutdown();
+            } catch (Exception e) {
+                asyncException = e;
+            }
         });
 
         nameServerThread.start();
@@ -186,7 +193,16 @@ class RingIntegrityIntegrationTest {
                 assertEquals(node, initialNode);
             }
 
-            nameServer.shutdown();
+            try {
+                nameServer.shutdown();
+                elias.shutdown();
+                hans.shutdown();
+                jonathan.shutdown();
+                jill.shutdown();
+            } catch (Exception e) {
+                e.printStackTrace();
+                asyncException = e;
+            }
         });
 
         nameServerThread.start();

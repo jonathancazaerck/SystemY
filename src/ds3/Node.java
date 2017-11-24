@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
@@ -29,9 +30,10 @@ public class Node implements NodeLifecycleHooks {
     private boolean isShuttingDown = false;
 
     private ArrayList<Runnable> onReadyRunnables = new ArrayList<Runnable>();
+    private ArrayList<Runnable> onBoundRunnables = new ArrayList<Runnable>();
     private ArrayList<Runnable> onShutdownRunnables = new ArrayList<Runnable>();
     private ArrayList<Runnable> onFilesReplicatedRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onNeighbourChangedRunnables = new ArrayList<Runnable>();
+    private ArrayList<Runnable> onNeighboursChangedRunnables = new ArrayList<Runnable>();
     private ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<Runnable>();
     private ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<Runnable>();
 
@@ -50,6 +52,8 @@ public class Node implements NodeLifecycleHooks {
     private MulticastSocket multicastSocket;
 
     private InetAddress nameServerIp;
+
+    private NameServerOperations nameServer;
 
     public Node(String name, InetSocketAddress address) throws IOException {
         super();
@@ -97,23 +101,46 @@ public class Node implements NodeLifecycleHooks {
         log("Multicasting node hello: " + name + " at " + address.toString());
         sendMulticast("node_hello", true);
 
-        log("Listening for nameserver hello and reveals");
-        waitForNameServerHelloAndReveals();
+        log("Listening for nameserver hello");
+        int nodeAmount = waitForNameServerHello();
+        log("Received nameserver hello");
 
-
-        log("Locating registry at " + this.nameServerIp.toString());
-        registry = LocateRegistry.getRegistry(this.nameServerIp.getHostAddress(), Constants.REGISTRY_PORT);
-        log("Located registry at " + this.nameServerIp.toString());
-        NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
-
+        setupRegistry();
         setupInternalRunnables();
+        onBoundRunnables.forEach(Runnable::run);
+
+        if (nodeAmount > 1) {
+            log("Starting wait for reveals");
+            waitForReveals(nodeAmount);
+            log("Received reveals and setup neighbours");
+        }
+
         startListeners();
+    }
+
+    private void setupRegistry() throws RemoteException, NotBoundException {
+        log("Locating registry at " + this.nameServerIp.toString());
+        this.registry = LocateRegistry.getRegistry(this.nameServerIp.getHostAddress(), Constants.REGISTRY_PORT);
+        log("Located registry at " + this.nameServerIp.toString());
+        this.nameServer = (NameServerOperations) this.registry.lookup("NameServer");
+        log("Looked up nameserver");
     }
 
     private void setupInternalRunnables() {
         this.onReadyRunnables.add(() -> {
             try {
                 sendMulticast("node_ready", false);
+                replicateFiles();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (NotBoundException e) {
+                e.printStackTrace();
+            }
+        });
+
+        this.onBoundRunnables.add(() -> {
+            try {
+                sendMulticast("node_bound", false);
                 replicateFiles();
             } catch (IOException e) {
                 e.printStackTrace();
@@ -184,17 +211,36 @@ public class Node implements NodeLifecycleHooks {
         socket.close();
     }
 
-    private void waitForNameServerHelloAndReveals() throws IOException, ParseException, UnknownMessageException {
-        boolean gotNameServerHello = false;
-        int revealCount = 0;
-        Integer revealCountNeeded = null;
-        boolean gotAll = false;
-
+    private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
+        byte[] buffer = new byte[1000];
         DatagramSocket datagramSocket = new DatagramSocket(address.getPort());
+        DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+        datagramSocket.receive(packet);
 
-        while(!gotAll) {
-            byte[] buffer = new byte[1000];
+        JSONObject obj = Util.extractJSONFromPacket(packet);
+        String msgType = (String) obj.get("type");
 
+        switch (msgType) {
+            case "nameserver_hello":
+                datagramSocket.close();
+                this.nameServerIp = InetAddress.getByName((String) obj.get("ip"));
+                int nodeAmount = (int) (long) obj.get("amount");
+                log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
+                return nodeAmount;
+            default:
+                throw new UnknownMessageException(msgType);
+        }
+    }
+
+    private void waitForReveals(int nodeAmount) throws IOException, ParseException, UnknownMessageException, InterruptedException, NotBoundException {
+        int revealCount = 0;
+        int revealCountNeeded = Math.min(nodeAmount - 1, 2);
+
+        byte[] buffer = new byte[1000];
+        DatagramSocket datagramSocket = new DatagramSocket(address.getPort());
+        log("Listening for " + revealCountNeeded + " reveals");
+
+        while(revealCount < revealCountNeeded) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             datagramSocket.receive(packet);
 
@@ -202,13 +248,6 @@ public class Node implements NodeLifecycleHooks {
             String msgType = (String) obj.get("type");
 
             switch (msgType) {
-                case "nameserver_hello":
-                    this.nameServerIp = InetAddress.getByName((String) obj.get("ip"));
-                    int nodeAmount = (int) (long) obj.get("amount");
-                    revealCountNeeded = nodeAmount - 1;
-                    log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
-                    gotNameServerHello = true;
-                    break;
                 case "node_reveal":
                     revealCount += 1;
                     int sourceNodeHash = (int) (long) obj.get("hash");
@@ -224,21 +263,20 @@ public class Node implements NodeLifecycleHooks {
                     if (this.hash == sourceNodeNextHash) {
                         this.prevNodeHash = sourceNodeHash;
                         changed = true;
-                    };
-                    if (changed) {
-                        this.onNeighbourChangedRunnables.forEach(Runnable::run);
+                    }
+                    if (changed && this.hash != this.prevNodeHash && this.hash != this.nextNodeHash) {
+                        this.onNeighboursChangedRunnables.forEach(Runnable::run);
                     }
                     break;
                 default:
                     throw new UnknownMessageException(msgType);
             }
-            if (gotNameServerHello && revealCount == revealCountNeeded) gotAll = true;
         }
 
         datagramSocket.close();
     }
 
-    private void handleNodeHello(int newNodeHash) throws IOException, NotBoundException {
+    private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException {
         boolean isAlone = hash == prevNodeHash;
         boolean isFirstNode = hash < prevNodeHash;
         boolean isLastNode = nextNodeHash < hash;
@@ -264,32 +302,26 @@ public class Node implements NodeLifecycleHooks {
             responseMsg.put("next_hash", this.nextNodeHash);
             String responseStr = responseMsg.toJSONString();
 
-            NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
-
             DatagramSocket datagramSocket = new DatagramSocket();
 
-            InetSocketAddress nodeAddress = nameServer.getAddressByHash(changedHash);
+            InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(changedHash);
 
             log("Sending node reveal to " + nodeAddress.toString());
             datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeAddress.getAddress(), nodeAddress.getPort()));
             datagramSocket.close();
 
-            this.onNeighbourChangedRunnables.forEach(Runnable::run);
+            this.onNeighboursChangedRunnables.forEach(Runnable::run);
         }
     }
 
-    public void shutdown() throws IOException, InterruptedException {
+    public void shutdown() throws IOException, InterruptedException, NodeNotReadyException {
         this.isShuttingDown = true;
 
-//        NodeOperations prevNode = (NodeOperations) this.registry.lookup(Util.getNodeRegistryName(this.prevNodeHash));
-//        NodeOperations nextNode = (NodeOperations) this.registry.lookup(Util.getNodeRegistryName(this.nextNodeHash));
-//
-//        prevNode.notifyNeighbourShutdown(false, this.nextNodeHash);
-//        nextNode.notifyNeighbourShutdown(true, this.prevNodeHash);
-//
-//        this.registry.unbind(Util.getNodeRegistryName(this.hash));
-
         this.onShutdownRunnables.forEach(Runnable::run);
+
+        if (this.serverSocket == null || this.multicastSocket == null) {
+            throw new NodeNotReadyException(this.name);
+        }
 
         this.serverSocket.close();
         this.multicastSocket.close();
@@ -303,25 +335,23 @@ public class Node implements NodeLifecycleHooks {
     }
 
     private void replicateFiles(Integer limitHash) throws IOException, NotBoundException {
-        log("replicating files, is alone?" + isAlone());
         if(isAlone()) return;
+
         File[] localFiles = localFilesPath.toFile().listFiles();
         if(localFiles == null) return;
 
         int count;
         byte[] buffer = new byte[(int) Math.pow(2, 10)];
 
-        NameServerOperations nameServer = (NameServerOperations) registry.lookup("NameServer");
-
         for (File localFile : localFiles) {
             int fileHash = Util.hash(name);
 
-            int nodeHashToDupl = nameServer.getNodeHashToReplicateTo(fileHash);
+            int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
 
             if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
             if (limitHash != null && nodeHashToDupl != limitHash) continue;
 
-            InetSocketAddress addressToDupl = nameServer.getAddressByHash(nodeHashToDupl);
+            InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
 
             log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
 
@@ -357,11 +387,14 @@ public class Node implements NodeLifecycleHooks {
 
             socket.close();
         }
+
+        this.onFilesReplicatedRunnables.forEach(Runnable::run);
     }
 
     private void listenForFiles() throws IOException {
-        log("Listening for files on port " + this.address.getPort());
         this.serverSocket = new ServerSocket(this.address.getPort());
+        this.serverSocket.setReuseAddress(true);
+        log("Listening for files on port " + this.address.getPort());
         this.onListeningForFilesRunnables.forEach(Runnable::run);
 
         while(!this.isShuttingDown) {
@@ -380,20 +413,21 @@ public class Node implements NodeLifecycleHooks {
                 e.printStackTrace();
             }
         }
+        this.serverSocket.close();
     }
 
     private void listenForMulticasts() throws IOException, UnknownMessageException, ParseException {
-        log("Listening for multicasts");
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
-        multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
-        multicastSocket.joinGroup(multicastIp);
+        this.multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
+        this.multicastSocket.joinGroup(multicastIp);
+        log("Listening for multicasts");
         this.onListeningForMulticastsRunnables.forEach(Runnable::run);
 
         while(!this.isShuttingDown) {
             byte[] buffer = new byte[1000];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
-                multicastSocket.receive(packet);
+                this.multicastSocket.receive(packet);
                 handleMulticastPacket(packet);
             } catch (SocketException e) {
                 log("Closed socket, stopping multicast listener");
@@ -403,6 +437,8 @@ public class Node implements NodeLifecycleHooks {
                 e.printStackTrace();
             }
         }
+
+        this.multicastSocket.close();
     }
 
     private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException {
@@ -417,10 +453,13 @@ public class Node implements NodeLifecycleHooks {
 
         switch (msgType) {
             case "node_hello":
-                handleNodeHello(sourceNodeHash);
+                break;
+            case "node_bound":
+                handleNodeBound(sourceNodeHash);
                 break;
             case "node_ready":
                 replicateFiles(sourceNodeHash);
+                removeRedunantFiles(sourceNodeHash);
                 break;
             case "node_shutdown":
                 if (this.prevNodeHash == sourceNodeHash) {
@@ -432,6 +471,20 @@ public class Node implements NodeLifecycleHooks {
                 break;
             default:
                 throw new UnknownMessageException(msgType);
+        }
+    }
+
+    private void removeRedunantFiles(int sourceNodeHash) throws RemoteException {
+        File[] replicatedFiles = replicatedFilesPath.toFile().listFiles();
+        if(replicatedFiles == null) return;
+
+        int count;
+        byte[] buffer = new byte[(int) Math.pow(2, 10)];
+
+        for (File replicatedFile : replicatedFiles) {
+            if (this.nameServer.getNodeHashToReplicateTo(Util.hash(replicatedFile.getName())) == sourceNodeHash) {
+                replicatedFile.delete();
+            }
         }
     }
 
@@ -487,8 +540,13 @@ public class Node implements NodeLifecycleHooks {
     }
 
     @Override
-    public void onNeighbourChanged(Runnable runnable) {
-        onNeighbourChangedRunnables.add(runnable);
+    public void onNeighboursChanged(Runnable runnable) {
+        onNeighboursChangedRunnables.add(runnable);
+    }
+
+    @Override
+    public void onBound(Runnable runnable) {
+        onBoundRunnables.add(runnable);
     }
 
     private void log(String str) {

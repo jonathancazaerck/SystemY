@@ -29,6 +29,8 @@ public class NodeMain {
                         e.printStackTrace();
                     } catch (InterruptedException e) {
                         e.printStackTrace();
+                    } catch (NodeNotReadyException e) {
+                        e.printStackTrace();
                     }
                 }
             });

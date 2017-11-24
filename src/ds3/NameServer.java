@@ -16,9 +16,11 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
-    private Ring ring;
+    private Ring allRing;
+    private Ring readyRing;
     private InetAddress ip;
 
     private ArrayList<Runnable> onReadyRunnables;
@@ -33,7 +35,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
-        this.ring = new Ring();
+        this.allRing = new Ring();
+        this.readyRing = new Ring();
         this.onReadyRunnables = new ArrayList<Runnable>();
         this.onShutdownRunnables = new ArrayList<Runnable>();
         this.isShuttingDown = false;
@@ -79,11 +82,11 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
         String msgType = (String) obj.get("type");
+        int nodeHash = ((int) (long) obj.get("hash"));
 
         switch (msgType) {
             case "node_hello":
                 String nodeName = (String) obj.get("name");
-                int nodeHash = ((int) (long) obj.get("hash"));
                 InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
                 int nodePort = ((Long) obj.get("port")).intValue();
                 InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort);
@@ -109,7 +112,12 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 datagramSocket.close();
 
                 break;
+            case "node_bound":
+                break;
             case "node_ready":
+                this.readyRing.put(nodeHash, this.allRing.get(nodeHash));
+                break;
+            case "node_shutdown":
                 break;
             default:
                 throw new UnknownMessageException(msgType);
@@ -117,31 +125,31 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     }
 
     private void registerNode(int hash, InetSocketAddress address) throws ExistingNodeException {
-        if(this.ring.containsKey(hash)) {
+        if(this.allRing.containsKey(hash)) {
             throw new ExistingNodeException(hash);
         } else {
-            this.ring.put(hash, address);
+            this.allRing.put(hash, address);
         }
     }
 
     public InetSocketAddress getAddressByHash(int hash) {
-        return this.ring.get(hash);
+        return this.allRing.get(hash);
     }
 
     public int getNodeHashToReplicateTo(int fileHash) {
-        return this.ring.lowerModularEntry(fileHash);
+        return this.readyRing.lowerModularEntry(fileHash);
     }
 
     public int getNumberOfNodes() {
-        return this.ring.size();
+        return this.allRing.size();
     }
 
     public void exportJSON() {
         JSONObject obj = new JSONObject();
 
-        for(Map.Entry<Integer, InetSocketAddress> entry : ring.entrySet()) {
+        for(Map.Entry<Integer, InetSocketAddress> entry : allRing.entrySet()) {
             InetSocketAddress address = entry.getValue();
-            obj.put(entry.getKey().toString(), address.getHostName()+":"+address.getPort());
+            obj.put(entry.getKey().toString(), address.getHostName() + ":" + address.getPort());
         }
 
         File file = new File("tmp/nameserver.json");
@@ -167,7 +175,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 String[] v = entry.getValue().split(":");
                 InetAddress ip = InetAddress.getByName(v[0]);
                 int port = Integer.parseInt(v[1]);
-                ring.put(Integer.parseInt(entry.getKey()), new InetSocketAddress(ip, port));
+                allRing.put(Integer.parseInt(entry.getKey()), new InetSocketAddress(ip, port));
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -176,21 +184,11 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
-    public void shutdown() {
+    public void shutdown() throws RemoteException, NotBoundException {
         this.isShuttingDown = true;
         this.multicastSocket.close();
-        try {
-            this.registry.unbind("NameServer");
-            UnicastRemoteObject.unexportObject(this.registry, true);
-        } catch (NoSuchObjectException e) {
-            e.printStackTrace();
-        } catch (AccessException e) {
-            e.printStackTrace();
-        } catch (RemoteException e) {
-            e.printStackTrace();
-        } catch (NotBoundException e) {
-            e.printStackTrace();
-        }
+        this.registry.unbind("NameServer");
+        UnicastRemoteObject.unexportObject(this.registry, true);
     }
 
     @Override
