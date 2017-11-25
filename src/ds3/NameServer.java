@@ -64,7 +64,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         onReadyRunnables.forEach(Runnable::run);
 
         while(!this.isShuttingDown) {
-            byte[] buffer = new byte[1000];
+            byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 multicastSocket.receive(packet);

@@ -221,7 +221,7 @@ public class Node implements NodeLifecycleHooks {
     }
 
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
-        byte[] buffer = new byte[1000];
+        byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         unicastSocket.receive(packet);
 
@@ -243,7 +243,7 @@ public class Node implements NodeLifecycleHooks {
         int revealCount = 0;
         int revealCountNeeded = Math.min(nodeAmount - 1, 2);
 
-        byte[] buffer = new byte[1000];
+        byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         log("Listening for " + revealCountNeeded + " reveals");
 
         while(revealCount < revealCountNeeded) {
@@ -348,7 +348,7 @@ public class Node implements NodeLifecycleHooks {
         if(localFiles == null) return;
 
         int count;
-        byte[] buffer = new byte[(int) Math.pow(2, 10)];
+        byte[] fileOutputBuffer = new byte[Constants.MAX_FILE_SIZE];
 
         for (File localFile : localFiles) {
             int fileHash = Util.hash(name);
@@ -380,8 +380,8 @@ public class Node implements NodeLifecycleHooks {
                 metadataBuffer.put(metadata.toJSONString().getBytes());
                 out.write(metadataBuffer.array(), 0, Constants.FILE_METADATA_LENGTH);
 
-                while ((count = bfis.read(buffer)) >= 0) {
-                    out.write(buffer, 0, count);
+                while ((count = bfis.read(fileOutputBuffer)) >= 0) {
+                    out.write(fileOutputBuffer, 0, count);
                     out.flush();
                 }
 
@@ -431,7 +431,7 @@ public class Node implements NodeLifecycleHooks {
         this.onListeningForMulticastsRunnables.forEach(Runnable::run);
 
         while(!this.isShuttingDown) {
-            byte[] buffer = new byte[1000];
+            byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
             try {
                 this.multicastSocket.receive(packet);
@@ -485,9 +485,6 @@ public class Node implements NodeLifecycleHooks {
         File[] replicatedFiles = replicatedFilesPath.toFile().listFiles();
         if(replicatedFiles == null) return;
 
-        int count;
-        byte[] buffer = new byte[(int) Math.pow(2, 10)];
-
         for (File replicatedFile : replicatedFiles) {
             if (this.nameServer.getNodeHashToReplicateTo(Util.hash(replicatedFile.getName())) == sourceNodeHash) {
                 replicatedFile.delete();
@@ -512,7 +509,7 @@ public class Node implements NodeLifecycleHooks {
 
         FileOutputStream fos = new FileOutputStream(filePath.toString());
 
-        byte[] buffer = new byte[(int) Math.pow(2, 22)];
+        byte[] buffer = new byte[Constants.MAX_FILE_SIZE];
         int count;
 
         long actualFileSize = 0;
