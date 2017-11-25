@@ -17,6 +17,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
     private Ring allRing;
@@ -72,13 +73,15 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 log("Closed socket, stopping");
             } catch (IOException e) {
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
 
         onShutdownRunnables.forEach(Runnable::run);
     }
 
-    private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException {
+    private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, InterruptedException {
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
         String msgType = (String) obj.get("type");
@@ -107,6 +110,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
                 DatagramSocket datagramSocket = new DatagramSocket();
 
+                TimeUnit.SECONDS.sleep(1); // between sending and listening
                 log("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
                 datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
                 datagramSocket.close();

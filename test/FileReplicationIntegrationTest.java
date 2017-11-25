@@ -122,7 +122,7 @@ public class FileReplicationIntegrationTest {
         nameServerThread.join();
     }
 
-    synchronized void incrementReplicationCount() {
+    private synchronized void incrementReplicationCount() {
         this.replicationCount += 1;
     }
 }

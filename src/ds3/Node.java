@@ -16,6 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
     private InetSocketAddress address;
@@ -185,6 +186,8 @@ public class Node implements NodeLifecycleHooks {
                 e.printStackTrace();
             } catch (UnknownMessageException e) {
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         });
         this.multicastListenerThread.start();
@@ -276,7 +279,7 @@ public class Node implements NodeLifecycleHooks {
         datagramSocket.close();
     }
 
-    private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException {
+    private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException, InterruptedException {
         boolean isAlone = hash == prevNodeHash;
         boolean isFirstNode = hash < prevNodeHash;
         boolean isLastNode = nextNodeHash < hash;
@@ -306,11 +309,12 @@ public class Node implements NodeLifecycleHooks {
 
             InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(changedHash);
 
+            this.onNeighboursChangedRunnables.forEach(Runnable::run);
+            TimeUnit.SECONDS.sleep(1);  // between sending and listening
+
             log("Sending node reveal to " + nodeAddress.toString());
             datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeAddress.getAddress(), nodeAddress.getPort()));
             datagramSocket.close();
-
-            this.onNeighboursChangedRunnables.forEach(Runnable::run);
         }
     }
 
@@ -416,7 +420,7 @@ public class Node implements NodeLifecycleHooks {
         this.serverSocket.close();
     }
 
-    private void listenForMulticasts() throws IOException, UnknownMessageException, ParseException {
+    private void listenForMulticasts() throws IOException, UnknownMessageException, ParseException, InterruptedException {
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         this.multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
         this.multicastSocket.joinGroup(multicastIp);
@@ -441,7 +445,7 @@ public class Node implements NodeLifecycleHooks {
         this.multicastSocket.close();
     }
 
-    private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException {
+    private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException, InterruptedException {
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
         String msgType = (String) obj.get("type");
