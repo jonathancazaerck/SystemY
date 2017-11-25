@@ -1,5 +1,6 @@
 import ds3.NameServer;
 import ds3.Node;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -10,9 +11,11 @@ import java.net.InetSocketAddress;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class FileReplicationIntegrationTest {
     private NameServer nameServer;
@@ -36,7 +39,7 @@ public class FileReplicationIntegrationTest {
     private volatile Exception asyncException;
 
     @BeforeEach
-    void setUp() throws IOException, InterruptedException {
+    void setUp() throws IOException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         Node.setFilesPath(Paths.get("fixtures/files"));
@@ -75,13 +78,19 @@ public class FileReplicationIntegrationTest {
         this.jillThread = nodeThreads.get(nodes.indexOf(jill));
 
         this.replicationCount = 0;
+    }
 
-        Thread.sleep(1000);
+    @AfterEach
+    void checkForThreadException() {
+        if (asyncException != null) {
+            asyncException.printStackTrace();
+            fail(asyncException);
+        }
     }
 
     @Disabled
     @Test
-    void testFourNodes() throws InterruptedException {
+    void testFiles() throws InterruptedException {
         nameServer.onReady(jillThread::start);
         jill.onReady(hansThread::start);
         hans.onReady(jonathanThread::start);
@@ -94,7 +103,11 @@ public class FileReplicationIntegrationTest {
 
             // There should be 9 batch file transfers
             if (replicationCount == 9) {
-
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException e) {
+                    asyncException = e;
+                }
                 try {
                     nameServer.shutdown();
                     elias.shutdown();
@@ -112,13 +125,12 @@ public class FileReplicationIntegrationTest {
         jonathan.onFilesReplicated(afterFilesReplicated);
         elias.onFilesReplicated(afterFilesReplicated);
 
-
         nameServerThread.start();
 
-        eliasThread.join();
+        jillThread.join();
         hansThread.join();
         jonathanThread.join();
-        jillThread.join();
+        eliasThread.join();
         nameServerThread.join();
     }
 

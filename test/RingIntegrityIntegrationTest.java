@@ -39,7 +39,7 @@ class RingIntegrityIntegrationTest {
     private volatile Exception asyncException;
 
     @BeforeEach
-    void setUp() throws IOException, InterruptedException {
+    void setUp() throws IOException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         Node.setFilesPath(Paths.get("fixtures/files"));
@@ -76,8 +76,6 @@ class RingIntegrityIntegrationTest {
         this.hansThread = nodeThreads.get(nodes.indexOf(hans));
         this.jonathanThread = nodeThreads.get(nodes.indexOf(jonathan));
         this.jillThread = nodeThreads.get(nodes.indexOf(jill));
-
-        Thread.sleep(1000);
     }
 
     @AfterEach

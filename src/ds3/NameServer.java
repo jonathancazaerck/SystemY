@@ -110,7 +110,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
                 DatagramSocket datagramSocket = new DatagramSocket();
 
-                TimeUnit.SECONDS.sleep(1); // between sending and listening
+                TimeUnit.MILLISECONDS.sleep(100); // between sending and listening
                 log("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
                 datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
                 datagramSocket.close();

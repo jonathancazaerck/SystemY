@@ -5,6 +5,7 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
+import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -51,6 +52,7 @@ public class Node implements NodeLifecycleHooks {
 
     private ServerSocket serverSocket;
     private MulticastSocket multicastSocket;
+    private DatagramSocket unicastSocket;
 
     private InetAddress nameServerIp;
 
@@ -99,6 +101,8 @@ public class Node implements NodeLifecycleHooks {
     public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException, InterruptedException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
+        unicastSocket = new DatagramSocket(address.getPort());
+
         log("Multicasting node hello: " + name + " at " + address.toString());
         sendMulticast("node_hello", true);
 
@@ -115,6 +119,8 @@ public class Node implements NodeLifecycleHooks {
             waitForReveals(nodeAmount);
             log("Received reveals and setup neighbours");
         }
+
+        unicastSocket.close();
 
         startListeners();
     }
@@ -216,16 +222,14 @@ public class Node implements NodeLifecycleHooks {
 
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[1000];
-        DatagramSocket datagramSocket = new DatagramSocket(address.getPort());
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        datagramSocket.receive(packet);
+        unicastSocket.receive(packet);
 
         JSONObject obj = Util.extractJSONFromPacket(packet);
         String msgType = (String) obj.get("type");
 
         switch (msgType) {
             case "nameserver_hello":
-                datagramSocket.close();
                 this.nameServerIp = InetAddress.getByName((String) obj.get("ip"));
                 int nodeAmount = (int) (long) obj.get("amount");
                 log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
@@ -240,12 +244,11 @@ public class Node implements NodeLifecycleHooks {
         int revealCountNeeded = Math.min(nodeAmount - 1, 2);
 
         byte[] buffer = new byte[1000];
-        DatagramSocket datagramSocket = new DatagramSocket(address.getPort());
         log("Listening for " + revealCountNeeded + " reveals");
 
         while(revealCount < revealCountNeeded) {
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-            datagramSocket.receive(packet);
+            unicastSocket.receive(packet);
 
             JSONObject obj = Util.extractJSONFromPacket(packet);
             String msgType = (String) obj.get("type");
@@ -276,7 +279,7 @@ public class Node implements NodeLifecycleHooks {
             }
         }
 
-        datagramSocket.close();
+        unicastSocket.close();
     }
 
     private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException, InterruptedException {
@@ -310,7 +313,7 @@ public class Node implements NodeLifecycleHooks {
             InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(changedHash);
 
             this.onNeighboursChangedRunnables.forEach(Runnable::run);
-            TimeUnit.SECONDS.sleep(1);  // between sending and listening
+            TimeUnit.MILLISECONDS.sleep(100);  // between sending and listening
 
             log("Sending node reveal to " + nodeAddress.toString());
             datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeAddress.getAddress(), nodeAddress.getPort()));
