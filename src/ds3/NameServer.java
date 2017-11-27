@@ -104,7 +104,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
                 JSONObject responseMsg = new JSONObject();
                 responseMsg.put("type", "nameserver_hello");
-                responseMsg.put("ip", this.ip.getHostName());
+                responseMsg.put("ip", this.ip.getHostAddress());
                 responseMsg.put("amount", getNumberOfNodes());
                 String responseStr = responseMsg.toJSONString();
 
@@ -153,7 +153,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
         for(Map.Entry<Integer, InetSocketAddress> entry : allRing.entrySet()) {
             InetSocketAddress address = entry.getValue();
-            obj.put(entry.getKey().toString(), address.getHostName() + ":" + address.getPort());
+            obj.put(entry.getKey().toString(), address.getAddress().getHostAddress() + ":" + address.getPort());
         }
 
         File file = new File("tmp/nameserver.json");
