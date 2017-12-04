@@ -39,6 +39,8 @@ public class Node implements NodeLifecycleHooks {
     private ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<Runnable>();
     private ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<Runnable>();
 
+    private ArrayList<FileRef> fileList = new ArrayList<FileRef>();
+
     private Thread fileListenerThread;
     private Thread multicastListenerThread;
 
@@ -288,7 +290,7 @@ public class Node implements NodeLifecycleHooks {
         boolean isLastNode = nextNodeHash < hash;
         Integer changedHash = null;
 
-        log("Getting notified of new neighbour: this = " + hash + ", next = " + nextNodeHash + ", prev = " + prevNodeHash + ", new = " + newNodeHash);
+        log("Getting notified of new node: this = " + hash + ", next = " + nextNodeHash + ", prev = " + prevNodeHash + ", new = " + newNodeHash);
 
         if (isAlone || (hash < newNodeHash && newNodeHash < nextNodeHash) || (isLastNode && (hash < newNodeHash || newNodeHash < nextNodeHash))) {
             this.nextNodeHash = changedHash = newNodeHash;
