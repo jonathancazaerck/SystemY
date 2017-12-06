@@ -558,4 +558,8 @@ public class Node implements NodeLifecycleHooks {
     private void log(String str) {
         System.out.println("[" + name + "@" + hash + "] " + str);
     }
+
+    public ArrayList<FileRef> getFileList() {
+        return fileList;
+    }
 }
