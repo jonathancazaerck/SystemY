@@ -3,9 +3,9 @@ package ds3;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-public class FilesAgent implements Serializable, Runnable {
+public class FilesAgent implements Agent {
     private ArrayList<FileRef> fileList = new ArrayList<FileRef>();
-    private Node currentNode;
+    private transient Node currentNode;
 
     public void setCurrentNode(Node node) {
         this.currentNode = node;

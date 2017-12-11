@@ -349,8 +349,6 @@ public class Node implements NodeLifecycleHooks {
         File[] localFiles = localFilesPath.toFile().listFiles();
         if(localFiles == null) return;
 
-        int count;
-        byte[] fileOutputBuffer = new byte[Constants.MAX_FILE_SIZE];
 
         for (File localFile : localFiles) {
             int fileHash = Util.hash(name);
@@ -364,37 +362,19 @@ public class Node implements NodeLifecycleHooks {
 
             log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
 
-            Socket socket = new Socket(addressToDupl.getAddress(), addressToDupl.getPort());
+            FileInputStream fis = new FileInputStream(localFile);
+            long fileSize = fis.getChannel().size();
 
-            try {
-                OutputStream out = socket.getOutputStream();
-                FileInputStream fis = new FileInputStream(localFile);
-                BufferedInputStream bfis = new BufferedInputStream(fis);
+            JSONObject metadata = new JSONObject();
+            metadata.put("type", "file_metadata");
+            metadata.put("name", localFile.getName());
+            metadata.put("size", fileSize);
 
-                long fileSize = fis.getChannel().size();
+            BufferedInputStream bfis = new BufferedInputStream(fis);
 
-                JSONObject metadata = new JSONObject();
-                metadata.put("type", "file_metadata");
-                metadata.put("name", localFile.getName());
-                metadata.put("size", fileSize);
+            TCPHelper.sendRequest(addressToDupl, metadata, bfis);
 
-                ByteBuffer metadataBuffer = ByteBuffer.allocate(Constants.FILE_METADATA_LENGTH);
-                metadataBuffer.put(metadata.toJSONString().getBytes());
-                out.write(metadataBuffer.array(), 0, Constants.FILE_METADATA_LENGTH);
-
-                while ((count = bfis.read(fileOutputBuffer)) >= 0) {
-                    out.write(fileOutputBuffer, 0, count);
-                    out.flush();
-                }
-
-                out.close();
-                bfis.close();
-                log("File " + localFile.getName() + " is transferred!");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            socket.close();
+            log("File " + localFile.getName() + " is transferred!");
         }
 
         this.onFilesReplicatedRunnables.forEach(Runnable::run);
@@ -410,7 +390,7 @@ public class Node implements NodeLifecycleHooks {
             Socket request;
             try {
                 request = this.serverSocket.accept();
-                handleFileRequest(request);
+                handleUnicast(request);
                 request.close();
             } catch(SocketException e) {
                 log("Closed socket, stopping file listener");
@@ -419,6 +399,8 @@ public class Node implements NodeLifecycleHooks {
             } catch (ParseException e) {
                 e.printStackTrace();
             } catch (UnmatchedFileSizeException e) {
+                e.printStackTrace();
+            } catch (UnknownMessageException e) {
                 e.printStackTrace();
             }
         }
@@ -494,17 +476,38 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
-    private void handleFileRequest(Socket request) throws IOException, ParseException, UnmatchedFileSizeException {
+    private void handleUnicast(Socket request) throws IOException, ParseException, UnmatchedFileSizeException, UnknownMessageException {
         InputStream in = request.getInputStream();
-        byte[] fileSizeBuffer = new byte[Constants.FILE_METADATA_LENGTH];
-        in.read(fileSizeBuffer, 0, Constants.FILE_METADATA_LENGTH);
-        String metadataStr = new String(Util.trimByteArray(fileSizeBuffer));
+        byte[] fileMetadataBuffer = new byte[Constants.FILE_METADATA_LENGTH];
+        in.read(fileMetadataBuffer, 0, Constants.FILE_METADATA_LENGTH);
+        String metadataStr = new String(Util.trimByteArray(fileMetadataBuffer));
 
         log("Incoming metadata " + metadataStr);
         JSONObject metadata = (JSONObject) JSONValue.parseWithException(metadataStr+"\n");
 
-        long expectedFileSize = (long) metadata.get("size");
-        String fileName = (String) metadata.get("name");
+        // TODO: metadata type = file_metadata / agent_metadata
+
+        String metadataType = (String) metadata.get("type");
+
+        switch (metadataType) {
+            case "file_metadata":
+                long expectedFileSize = (long) metadata.get("size");
+                String fileName = (String) metadata.get("name");
+                handleIncomingFile(fileName, expectedFileSize, in);
+                in.close();
+                break;
+            case "agent_metadata":
+                System.out.println("Should handle agent");
+                in.close();
+                break;
+            default:
+                in.close();
+                throw new UnknownMessageException(metadataType);
+        }
+
+    }
+
+    private void handleIncomingFile(String fileName, long expectedFileSize, InputStream in) throws IOException, UnmatchedFileSizeException {
         Path filePath = Paths.get(replicatedFilesPath.toString(), fileName);
 
         log("Writing file " + fileName + " to " + filePath);
@@ -522,8 +525,6 @@ public class Node implements NodeLifecycleHooks {
         if(actualFileSize != expectedFileSize) {
             throw new UnmatchedFileSizeException(fileName, expectedFileSize, actualFileSize);
         }
-
-        in.close();
     }
 
     private boolean isAlone() {
@@ -561,5 +562,30 @@ public class Node implements NodeLifecycleHooks {
 
     public ArrayList<FileRef> getFileList() {
         return fileList;
+    }
+
+    private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
+        ObjectInputStream ois = new ObjectInputStream(in);
+        Agent agent = (Agent) ois.readObject();
+        startAgent(agent);
+    }
+
+    private void startAgent(Agent agent) {
+        agent.setCurrentNode(this);
+        new Thread(() -> {
+            agent.run();
+            try {
+                sendAgentToNextNode(agent);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    private void sendAgentToNextNode(Agent agent) throws IOException {
+//        ObjectOutputStream out = new ObjectOutputStream(fileOut);
+//        out.writeObject(agent);
+//        out.close();
+//        fileOut.close();
     }
 }

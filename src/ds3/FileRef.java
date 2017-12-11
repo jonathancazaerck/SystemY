@@ -13,8 +13,12 @@ public class FileRef {
         return locked;
     }
 
-    public void setLocked(boolean locked) {
-        this.locked = locked;
+    public void lock() {
+        this.locked = true;
+    }
+
+    public void unlock() {
+        this.locked = false;
     }
 
     public FileRefLocation getLocation() {
