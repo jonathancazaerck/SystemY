@@ -8,7 +8,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.util.Arrays;
 
-public final class Util {
+public abstract class Util {
     public static int hash(String str) {
         return Math.abs(str.hashCode()%32768);
     }

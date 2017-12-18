@@ -20,27 +20,22 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
-    private Ring allRing;
-    private Ring readyRing;
-    private InetAddress ip;
+    private final Ring allRing = new Ring();
+    private final Ring readyRing = new Ring();
+    private final InetAddress ip;
 
-    private ArrayList<Runnable> onReadyRunnables;
-    private ArrayList<Runnable> onShutdownRunnables;
+    private final ArrayList<Runnable> onReadyRunnables = new ArrayList<Runnable>();
+    private final ArrayList<Runnable> onShutdownRunnables = new ArrayList<Runnable>();
 
     private MulticastSocket multicastSocket;
 
-    private boolean isShuttingDown;
+    private boolean isShuttingDown = false;
 
     private Registry registry;
 
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
-        this.allRing = new Ring();
-        this.readyRing = new Ring();
-        this.onReadyRunnables = new ArrayList<Runnable>();
-        this.onShutdownRunnables = new ArrayList<Runnable>();
-        this.isShuttingDown = false;
     }
 
     public void start() throws IOException, AlreadyBoundException, ParseException, UnknownMessageException, ExistingNodeException {

@@ -10,7 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 
-public class TCPHelper {
+public abstract class TCPHelper {
     public static byte[] sendRequest(InetSocketAddress address, JSONObject metadata, BufferedInputStream bis) throws IOException {
         int count;
         byte[] fileOutputBuffer = new byte[Constants.MAX_FILE_SIZE];

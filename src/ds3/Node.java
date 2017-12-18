@@ -20,9 +20,9 @@ import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
-    private InetSocketAddress address;
-    private String name;
-    private int hash;
+    private final InetSocketAddress address;
+    private final String name;
+    private final int hash;
 
     private int nextNodeHash;
     private int prevNodeHash;
@@ -31,15 +31,15 @@ public class Node implements NodeLifecycleHooks {
 
     private boolean isShuttingDown = false;
 
-    private ArrayList<Runnable> onReadyRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onBoundRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onShutdownRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onFilesReplicatedRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onNeighboursChangedRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<Runnable>();
-    private ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<Runnable>();
+    private final ArrayList<Runnable> onReadyRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onBoundRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onShutdownRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onFilesReplicatedRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onNeighboursChangedRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<>();
 
-    private ArrayList<FileRef> fileList = new ArrayList<FileRef>();
+    private ArrayList<FileRef> fileList = new ArrayList<>();
 
     private Thread fileListenerThread;
     private Thread multicastListenerThread;
@@ -49,8 +49,8 @@ public class Node implements NodeLifecycleHooks {
 
     private static Path filesPath = Paths.get("tmp/files");
 
-    private Path localFilesPath;
-    private Path replicatedFilesPath;
+    private final Path localFilesPath;
+    private final Path replicatedFilesPath;
 
     private ServerSocket serverSocket;
     private MulticastSocket multicastSocket;
@@ -123,6 +123,10 @@ public class Node implements NodeLifecycleHooks {
         }
 
         unicastSocket.close();
+
+        if (nodeAmount == 2) {
+            new Thread(this::spawnFailureAgent).start();
+        }
 
         startListeners();
     }
@@ -600,19 +604,45 @@ public class Node implements NodeLifecycleHooks {
     private void startAgent(Agent agent) {
         agent.setCurrentNode(this);
         new Thread(() -> {
+            boolean isAlone = isAlone();
             agent.run();
+            if (isAlone) return;
             try {
+                TimeUnit.SECONDS.sleep(1);
                 sendAgentToNextNode(agent);
             } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }).start();
     }
 
     private void sendAgentToNextNode(Agent agent) throws IOException {
-//        ObjectOutputStream out = new ObjectOutputStream(fileOut);
-//        out.writeObject(agent);
-//        out.close();
-//        fileOut.close();
+        InetSocketAddress address = this.nameServer.getAddressByHash(this.nextNodeHash);
+
+        JSONObject metadata = new JSONObject();
+        metadata.put("type", "agent_metadata");
+        metadata.put("sort", "failure");
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(agent);
+        oos.close();
+
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+
+        BufferedInputStream bis = new BufferedInputStream(bais);
+
+        TCPHelper.sendRequest(address, metadata, bis);
+
+        log("sent agent");
+    }
+
+    private void spawnFailureAgent() {
+        log("spawning failure agent");
+        Agent agent = new FilesAgent();
+        agent.setCurrentNode(this);
+        startAgent(agent);
     }
 }

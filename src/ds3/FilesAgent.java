@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 public class FilesAgent implements Agent {
-    private ArrayList<FileRef> fileList = new ArrayList<FileRef>();
+    private ArrayList<FileRef> fileList = new ArrayList<>();
     private transient Node currentNode;
 
     public void setCurrentNode(Node node) {
@@ -13,6 +13,8 @@ public class FilesAgent implements Agent {
 
     @Override
     public void run() {
+        log("starting");
+
         ArrayList<FileRef> nodeFileList = this.currentNode.getFileList();
 
         for(FileRef nodeFileRef : nodeFileList) {
@@ -30,6 +32,6 @@ public class FilesAgent implements Agent {
     }
 
     private void log(String str) {
-        System.out.println("[files_agent] " + str);
+        System.out.println("[files_agent@" + currentNode.getName() + "] " + str);
     }
 }
