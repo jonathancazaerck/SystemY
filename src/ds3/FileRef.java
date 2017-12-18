@@ -1,9 +1,15 @@
 package ds3;
 
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 public class FileRef {
     private String fileName;
     private boolean locked = false;
     private FileRefLocation location;
+
+    private static Path filesPath = Paths.get("tmp/files");
 
     public FileRef(String fileName) {
         this.fileName = fileName;
@@ -31,5 +37,11 @@ public class FileRef {
 
     public String getFileName() {
         return fileName;
+    }
+
+    public File getFile(String name){
+        Path localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local", fileName);
+        File file = localFilesPath.toFile();
+        return file;
     }
 }

@@ -380,6 +380,33 @@ public class Node implements NodeLifecycleHooks {
         this.onFilesReplicatedRunnables.forEach(Runnable::run);
     }
 
+    public void replicateFile(FileRef fileRef) throws IOException {
+        int fileHash = Util.hash(fileRef.getFileName());
+
+        File file = fileRef.getFile(name);
+
+        int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
+
+        if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
+        InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
+
+        log("Replicating file " + file.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
+
+        FileInputStream fis = new FileInputStream(file);
+        long fileSize = fis.getChannel().size();
+
+        JSONObject metadata = new JSONObject();
+        metadata.put("type", "file_metadata");
+        metadata.put("name", fileRef.getFileName());
+        metadata.put("size", fileSize);
+
+        BufferedInputStream bfis = new BufferedInputStream(fis);
+
+        TCPHelper.sendRequest(addressToDupl, metadata, bfis);
+
+        log("File " + file.getName() + " is transferred!");
+    }
+
     private void listenForFiles() throws IOException {
         this.serverSocket = new ServerSocket(this.address.getPort());
         this.serverSocket.setReuseAddress(true);
