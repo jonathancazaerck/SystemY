@@ -9,4 +9,5 @@ public interface NameServerOperations extends Remote {
     InetSocketAddress getAddressByHash(int hash) throws RemoteException;
     void exportJSON() throws RemoteException;
     void importJSON() throws RemoteException;
+    Ring getRing() throws RemoteException;
 }

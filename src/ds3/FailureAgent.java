@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 
-public class FailureAgent implements Serializable, Runnable{
+public class FailureAgent implements Agent {
     private int failedNodeHash;
     private int startedOnNodeHash;
 
@@ -22,6 +22,11 @@ public class FailureAgent implements Serializable, Runnable{
 
     public void setCurrentNode(Node node) { this.currentNode = node; }
 
+    @Override
+    public boolean shouldProceed() {
+        return false;
+    }
+
     public void setFileList(ArrayList<FileRef> fileList){this.fileList = fileList;}
 
     @Override
@@ -38,5 +43,9 @@ public class FailureAgent implements Serializable, Runnable{
                 }
             }
         }
+    }
+
+    private void log(String str) {
+        System.out.println("[failure_agent@" + currentNode.getName() + "] " + str);
     }
 }

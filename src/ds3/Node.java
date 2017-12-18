@@ -17,6 +17,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
@@ -130,7 +131,7 @@ public class Node implements NodeLifecycleHooks {
         unicastSocket.close();
 
         if (nodeAmount == 2) {
-            new Thread(this::spawnFailureAgent).start();
+            new Thread(this::spawnFilesAgent).start();
         }
 
         startListeners();
@@ -534,6 +535,13 @@ public class Node implements NodeLifecycleHooks {
                 break;
             case "agent_metadata":
                 System.out.println("Should handle agent");
+                ObjectInputStream ois = new ObjectInputStream(in);
+                try {
+                    Agent agent = (Agent) ois.readObject();
+                    startAgent(agent);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
                 in.close();
                 break;
             default:
@@ -614,7 +622,10 @@ public class Node implements NodeLifecycleHooks {
             if (isAlone) return;
             try {
                 TimeUnit.SECONDS.sleep(1);
-                sendAgentToNextNode(agent);
+                if (agent.shouldProceed()) sendAgentToNextNode(agent);
+            } catch (SocketException e) {
+                log("Can't send agent to " + nextNodeHash + ", starting failure agent");
+                spawnFailureAgent();
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -644,10 +655,20 @@ public class Node implements NodeLifecycleHooks {
         log("sent agent");
     }
 
+    private void spawnFilesAgent() {
+        log("spawning files agent");
+        Agent agent = new FilesAgent();
+        startAgent(agent);
+    }
+
+
     private void spawnFailureAgent() {
         log("spawning failure agent");
-        Agent agent = new FilesAgent();
-        agent.setCurrentNode(this);
-        startAgent(agent);
+        try {
+            Agent agent = new FailureAgent(nextNodeHash, hash, this.nameServer.getRing());
+            startAgent(agent);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 }
