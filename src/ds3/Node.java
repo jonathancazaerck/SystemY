@@ -64,34 +64,39 @@ public class Node implements NodeLifecycleHooks {
         super();
         this.name = name;
         this.address = address;
-        this.hash = Util.hash(name);
+        this.hash = Util.hash(name); //make a hash of the name of the node
         this.prevNodeHash = this.nextNodeHash = this.hash;
 
-        this.localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local");
-        this.replicatedFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "replicated");
+        this.localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local"); //e.g. tmp/files/jill/local
+        this.replicatedFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "replicated"); //e.g. tmp/files/jill/replicated
 
-        this.localFilesPath.toFile().mkdirs();
-        this.replicatedFilesPath.toFile().mkdirs();
+        this.localFilesPath.toFile().mkdirs(); //creates directory with this pathname
+        this.replicatedFilesPath.toFile().mkdirs(); //creates directory with this pathname
 
-        FileUtils.cleanDirectory(this.replicatedFilesPath.toFile());
+        FileUtils.cleanDirectory(this.replicatedFilesPath.toFile()); //cleans directory without deleting it
     }
 
+    //method to get the address of the node
     public InetSocketAddress getAddress() {
         return address;
     }
 
+    //method to get the name of the node
     public String getName() {
         return name;
     }
 
+    //methode to get the hash of the node
     public int getHash() {
         return hash;
     }
 
+    //method to get the previous node hash
     public int getPrevNodeHash() {
         return prevNodeHash;
     }
 
+    //method to get the next node hash
     public int getNextNodeHash() {
         return nextNodeHash;
     }
