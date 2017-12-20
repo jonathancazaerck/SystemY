@@ -5,10 +5,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
 import org.json.simple.parser.ParseException;
 
-import javax.xml.crypto.Data;
 import java.io.*;
 import java.net.*;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
@@ -17,7 +15,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
-import java.util.Scanner;
+import java.util.Collection;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
@@ -40,13 +40,17 @@ public class Node implements NodeLifecycleHooks {
     private final ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<>();
     private final ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<>();
 
-    private ArrayList<FileRef> fileList = new ArrayList<>();
+    private TreeMap<Integer, FileRef> fileList;
 
     private Thread fileListenerThread;
     private Thread multicastListenerThread;
 
     private boolean listeningToFiles = false;
     private boolean listeningToMulticasts = false;
+
+    public static Path getFilesPath() {
+        return filesPath;
+    }
 
     private static Path filesPath = Paths.get("tmp/files");
 
@@ -102,17 +106,20 @@ public class Node implements NodeLifecycleHooks {
         return nextNodeHash;
     }
 
-    public int setPrevNodeHash(int prevNodeHash) {
-        return this.prevNodeHash = prevNodeHash;
+    public void setPrevNodeHash(int prevNodeHash) {
+        this.prevNodeHash = prevNodeHash;
     }
 
-    public int setNextNodeHash(int nextNodeHash) {
-        return this.nextNodeHash = nextNodeHash;
+    public void setNextNodeHash(int nextNodeHash) {
+        this.nextNodeHash = nextNodeHash;
     }
-
 
     public static void setFilesPath(Path filesPath) {
         Node.filesPath = filesPath;
+    }
+
+    public Path getLocalFilesPath() {
+        return localFilesPath;
     }
 
     public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException, InterruptedException {
@@ -158,8 +165,7 @@ public class Node implements NodeLifecycleHooks {
         this.onReadyRunnables.add(() -> {
             try {
                 sendMulticast("node_ready", false);
-                replicateFiles();
-            } catch (IOException | NotBoundException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         });
@@ -167,8 +173,7 @@ public class Node implements NodeLifecycleHooks {
         this.onBoundRunnables.add(() -> {
             try {
                 sendMulticast("node_bound", false);
-                replicateFiles();
-            } catch (IOException | NotBoundException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         });
@@ -348,51 +353,40 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread.join();
     }
 
-    private void replicateFiles() throws IOException, NotBoundException {
-        replicateFiles(null);
-    }
+//    private void replicateFiles() throws IOException, NotBoundException {
+//        replicateFiles(null);
+//    }
+//
+//    private void replicateFiles(Integer limitHash) throws IOException, NotBoundException {
+//        if(isAlone()) return;
+//
+//        File[] localFiles = localFilesPath.toFile().listFiles();
+//        if(localFiles == null) return;
+//
+//        for (File localFile : localFiles) {
+//            int fileHash = Util.hash(name);
+//
+//            int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
+//
+//            if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
+//            if (limitHash != null && nodeHashToDupl != limitHash) continue;
+//
+//            InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
+//
+//            log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
+//
+//            sendFileToAddress(localFile, addressToDupl);
+//        }
+//
+//        this.onFilesReplicatedRunnables.forEach(Runnable::run);
+//    }
 
-    private void replicateFiles(Integer limitHash) throws IOException, NotBoundException {
-        if(isAlone()) return;
-
-        File[] localFiles = localFilesPath.toFile().listFiles();
-        if(localFiles == null) return;
-
-
-        for (File localFile : localFiles) {
-            int fileHash = Util.hash(name);
-
-            int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
-
-            if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
-            if (limitHash != null && nodeHashToDupl != limitHash) continue;
-
-            InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
-
-            log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
-
-            FileInputStream fis = new FileInputStream(localFile);
-            long fileSize = fis.getChannel().size();
-
-            JSONObject metadata = new JSONObject();
-            metadata.put("type", "file_metadata");
-            metadata.put("name", localFile.getName());
-            metadata.put("size", fileSize);
-
-            BufferedInputStream bfis = new BufferedInputStream(fis);
-
-            TCPHelper.sendRequest(addressToDupl, metadata, bfis);
-
-            log("File " + localFile.getName() + " is transferred!");
-        }
-
-        this.onFilesReplicatedRunnables.forEach(Runnable::run);
-    }
-
-    public void replicateFile(FileRef fileRef) throws IOException {
+    public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
         int fileHash = Util.hash(fileRef.getFileName());
 
-        File file = fileRef.getFile(name);
+        File file = fileRefToFile(fileRef);
+
+        if (fileRef.getActualLocationHash() != hash) throw new FileNotPresentException();
 
         int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
 
@@ -401,12 +395,22 @@ public class Node implements NodeLifecycleHooks {
 
         log("Replicating file " + file.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
 
+        sendFileToAddress(file, addressToDupl);
+    }
+
+    public void replicateFiles(Collection<FileRef> fileRefs) throws IOException, FileNotPresentException {
+        for(FileRef fileRef : fileRefs) {
+            replicateFile(fileRef);
+        }
+    }
+
+    private void sendFileToAddress(File file, InetSocketAddress addressToDupl) throws IOException {
         FileInputStream fis = new FileInputStream(file);
         long fileSize = fis.getChannel().size();
 
         JSONObject metadata = new JSONObject();
         metadata.put("type", "file_metadata");
-        metadata.put("name", fileRef.getFileName());
+        metadata.put("name", file.getName());
         metadata.put("size", fileSize);
 
         BufferedInputStream bfis = new BufferedInputStream(fis);
@@ -477,7 +481,6 @@ public class Node implements NodeLifecycleHooks {
                 handleNodeBound(sourceNodeHash);
                 break;
             case "node_ready":
-                replicateFiles(sourceNodeHash);
                 removeRedunantFiles(sourceNodeHash);
                 break;
             case "node_shutdown":
@@ -594,8 +597,12 @@ public class Node implements NodeLifecycleHooks {
         System.out.println("[" + name + "@" + hash + "] " + str);
     }
 
-    public ArrayList<FileRef> getFileList() {
+    public TreeMap<Integer, FileRef> getFileList() {
         return fileList;
+    }
+
+    public void setFileList(TreeMap<Integer, FileRef> fileList) {
+        this.fileList = fileList;
     }
 
     private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
@@ -675,5 +682,23 @@ public class Node implements NodeLifecycleHooks {
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    }
+
+    public void notifyUpdatedFiles(Collection<FileRef> updatedFileRefs) {
+        try {
+            replicateFiles(updatedFileRefs);
+        } catch (IOException | FileNotPresentException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private File fileRefToFile(FileRef fileRef) {
+        Path filePath = Paths.get(
+            Node.getFilesPath().toAbsolutePath().toString(),
+            name,
+            fileRef.isLocationDisappeared() ? "replicated" : "local",
+            fileRef.getFileName());
+
+        return filePath.toFile();
     }
 }

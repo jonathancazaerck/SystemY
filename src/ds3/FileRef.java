@@ -1,18 +1,19 @@
 package ds3;
 
 import java.io.File;
+import java.io.Serializable;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class FileRef {
+public class FileRef implements Serializable, Comparable<FileRef> {
     private String fileName;
     private boolean locked = false;
-    private FileRefLocation location;
+    private final Integer locationHash;
+    private Integer overrideLocationHash;
 
-    private static Path filesPath = Paths.get("tmp/files");
-
-    public FileRef(String fileName) {
+    public FileRef(String fileName, Integer locationHash) {
         this.fileName = fileName;
+        this.locationHash = locationHash;
     }
 
     public boolean isLocked() {
@@ -23,25 +24,38 @@ public class FileRef {
         this.locked = true;
     }
 
+    public int getFileNameHash() { return Util.hash(fileName); }
+
     public void unlock() {
         this.locked = false;
     }
 
-    public FileRefLocation getLocation() {
-        return location;
-    }
-
-    public void setLocation(FileRefLocation location) {
-        this.location = location;
+    public int getLocationHash() {
+        return locationHash;
     }
 
     public String getFileName() {
         return fileName;
     }
 
-    public File getFile(String name){
-        Path localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local", fileName);
-        File file = localFilesPath.toFile();
-        return file;
+    public boolean isLocationDisappeared() {
+        return overrideLocationHash != null;
+    }
+
+    public Integer getOverrideLocationHash() {
+        return overrideLocationHash;
+    }
+
+    public void setOverrideLocationHash(Integer overrideLocationHash) {
+        this.overrideLocationHash = overrideLocationHash;
+    }
+
+    public int getActualLocationHash() {
+        return overrideLocationHash != null ? overrideLocationHash : locationHash;
+    }
+
+    @Override
+    public int compareTo(FileRef other) {
+        return Integer.compare(getFileNameHash(), other.getFileNameHash());
     }
 }

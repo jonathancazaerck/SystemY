@@ -1,9 +1,11 @@
 package ds3;
 
-import java.util.ArrayList;
+import java.io.File;
+import java.net.InetSocketAddress;
+import java.util.*;
 
 public class FilesAgent implements Agent {
-    private ArrayList<FileRef> fileList = new ArrayList<>();
+    private final TreeMap<Integer, FileRef> fileList = new TreeMap<>();
     private transient Node currentNode;
 
     public void setCurrentNode(Node node) {
@@ -14,20 +16,30 @@ public class FilesAgent implements Agent {
     public void run() {
         log("starting");
 
-        ArrayList<FileRef> nodeFileList = this.currentNode.getFileList();
+        File[] localFiles = currentNode.getLocalFilesPath().toFile().listFiles();
+        if(localFiles == null) return;
+        TreeSet<FileRef> updatedFileRefs = new TreeSet<>();
 
-        for(FileRef nodeFileRef : nodeFileList) {
-            FileRef foundFileRef = null;
-
-            for(FileRef fileRef : fileList) {
-                if (nodeFileRef.getFileName().equals(fileRef.getFileName())) {
-                    foundFileRef = fileRef;
-                    break;
-                }
+        for (FileRef fileRef : fileList.values()) {
+            if (fileRef.isLocationDisappeared() && fileRef.getLocationHash() == currentNode.getHash()) {
+                fileRef.setOverrideLocationHash(null);
+                updatedFileRefs.add(fileRef);
             }
-
-            if (foundFileRef == null) nodeFileList.add(new FileRef(nodeFileRef.getFileName()));
         }
+
+        for (File localFile : localFiles) {
+            String name = localFile.getName();
+            int fileHash = Util.hash(name);
+
+            if (!fileList.containsKey(fileHash)) {
+                FileRef fileRef = new FileRef(name, currentNode.getHash());
+                fileList.put(fileHash, fileRef);
+                updatedFileRefs.add(fileRef);
+            }
+        }
+
+        currentNode.setFileList(fileList);
+        currentNode.notifyUpdatedFiles(updatedFileRefs);
     }
 
     @Override
