@@ -2,9 +2,7 @@ package ds3;
 
 import java.io.File;
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
 public class FilesAgent implements Agent {
     private final TreeMap<Integer, FileRef> fileList = new TreeMap<>();
@@ -20,7 +18,14 @@ public class FilesAgent implements Agent {
 
         File[] localFiles = currentNode.getLocalFilesPath().toFile().listFiles();
         if(localFiles == null) return;
-        ArrayList<FileRef> updatedFileRefs = new ArrayList<>();
+        TreeSet<FileRef> updatedFileRefs = new TreeSet<>();
+
+        for (FileRef fileRef : fileList.values()) {
+            if (fileRef.isLocationDisappeared() && fileRef.getLocationHash() == currentNode.getHash()) {
+                fileRef.setOverrideLocationHash(null);
+                updatedFileRefs.add(fileRef);
+            }
+        }
 
         for (File localFile : localFiles) {
             String name = localFile.getName();

@@ -15,7 +15,9 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
@@ -45,6 +47,10 @@ public class Node implements NodeLifecycleHooks {
 
     private boolean listeningToFiles = false;
     private boolean listeningToMulticasts = false;
+
+    public static Path getFilesPath() {
+        return filesPath;
+    }
 
     private static Path filesPath = Paths.get("tmp/files");
 
@@ -375,10 +381,12 @@ public class Node implements NodeLifecycleHooks {
 //        this.onFilesReplicatedRunnables.forEach(Runnable::run);
 //    }
 
-    public void replicateFile(FileRef fileRef) throws IOException {
+    public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
         int fileHash = Util.hash(fileRef.getFileName());
 
-        File file = fileRef.getFile(name);
+        File file = fileRefToFile(fileRef);
+
+        if (fileRef.getActualLocationHash() != hash) throw new FileNotPresentException();
 
         int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
 
@@ -390,7 +398,7 @@ public class Node implements NodeLifecycleHooks {
         sendFileToAddress(file, addressToDupl);
     }
 
-    public void replicateFiles(ArrayList<FileRef> fileRefs) throws IOException {
+    public void replicateFiles(Collection<FileRef> fileRefs) throws IOException, FileNotPresentException {
         for(FileRef fileRef : fileRefs) {
             replicateFile(fileRef);
         }
@@ -676,11 +684,21 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
-    public void notifyUpdatedFiles(ArrayList<FileRef> updatedFileRefs) {
+    public void notifyUpdatedFiles(Collection<FileRef> updatedFileRefs) {
         try {
             replicateFiles(updatedFileRefs);
-        } catch (IOException e) {
+        } catch (IOException | FileNotPresentException e) {
             e.printStackTrace();
         }
+    }
+
+    private File fileRefToFile(FileRef fileRef) {
+        Path filePath = Paths.get(
+            Node.getFilesPath().toAbsolutePath().toString(),
+            name,
+            fileRef.isLocationDisappeared() ? "replicated" : "local",
+            fileRef.getFileName());
+
+        return filePath.toFile();
     }
 }

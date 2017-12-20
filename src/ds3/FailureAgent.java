@@ -3,6 +3,7 @@ package ds3;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Collection;
 
 public class FailureAgent implements Agent {
     private int failedNodeHash;
@@ -13,9 +14,7 @@ public class FailureAgent implements Agent {
 
     private transient Node currentNode;
 
-    private ArrayList<FileRef> fileList;
-
-    public FailureAgent(int failedNodeHash, int startedOnNodeHash, ShallowRing shallowRing){
+    public FailureAgent(int failedNodeHash, int startedOnNodeHash, ShallowRing shallowRing) {
         this.failedNodeHash = failedNodeHash;
         this.startedOnNodeHash = startedOnNodeHash;
         this.shallowRing = shallowRing;
@@ -34,7 +33,6 @@ public class FailureAgent implements Agent {
 
     @Override
     public void run() {
-        log("Running failure agent");
         int currentNodeHash = currentNode.getHash();
         if (currentNode.getNextNodeHash() == failedNodeHash) {
             currentNode.setNextNodeHash(shallowRing.higherModular(currentNodeHash));
@@ -42,18 +40,14 @@ public class FailureAgent implements Agent {
         if (currentNode.getPrevNodeHash() == failedNodeHash) {
             currentNode.setPrevNodeHash(shallowRing.lowerModular(currentNodeHash));
         }
-        for(FileRef fileRef : currentNode.getFileList()) {
-            if(fileRef.getLocationHash() == currentNodeHash){
-                if(shallowRingWithFailedNode.lowerModular(Util.hash(fileRef.getFileName())) == failedNodeHash){
-                    try {
-                        currentNode.replicateFile(fileRef);
-                    } catch (java.io.IOException e) {
-                        e.printStackTrace();
-                    }
-                }
+        for(FileRef fileRef : currentNode.getFileList().values()) {
+            boolean fileBelongsOnFailedNode = fileRef.getLocationHash() == failedNodeHash;
+            boolean currentNodeHasFile = shallowRing.lowerModular(Util.hash(fileRef.getFileName())) == currentNodeHash;
+            if (fileBelongsOnFailedNode && currentNodeHasFile) {
+                fileRef.setOverrideLocationHash(currentNodeHash);
+                log("File " + fileRef.getFileName() + " belongs to failed node, i'm taking over.");
             }
         }
-        log("Running failure agent done");
     }
 
     private void log(String str) {
