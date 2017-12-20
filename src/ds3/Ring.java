@@ -6,7 +6,7 @@ import java.util.Set;
 import java.util.TreeMap;
 
 public class Ring extends TreeMap<Integer, InetSocketAddress> {
-    public int lowerModularEntry(int key) {
+    public int lowerModularKey(int key) {
         Map.Entry<Integer, InetSocketAddress> prevEntry = this.lowerEntry(key);
 
         if (prevEntry == null) {
@@ -16,7 +16,7 @@ public class Ring extends TreeMap<Integer, InetSocketAddress> {
         }
     }
 
-    public int higherModularEntry(int key) {
+    public int higherModularKey(int key) {
         Map.Entry<Integer, InetSocketAddress> nextEntry = this.higherEntry(key);
 
         if (nextEntry == null) {
@@ -25,5 +25,4 @@ public class Ring extends TreeMap<Integer, InetSocketAddress> {
             return nextEntry.getKey();
         }
     }
-
 }

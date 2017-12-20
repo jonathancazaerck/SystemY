@@ -6,35 +6,45 @@ import java.util.ArrayList;
 
 public class FailureAgent implements Agent {
     private int failedNodeHash;
-    private int startedOnNodeHash;
+    private final int startedOnNodeHash;
 
-    private Ring ring;
+    private final ShallowRing shallowRing;
+    private final ShallowRing shallowRingWithFailedNode;
 
     private transient Node currentNode;
 
     private ArrayList<FileRef> fileList;
 
-    public FailureAgent(int failedNodeHash, int startedOnNodeHash, Ring ring){
+    public FailureAgent(int failedNodeHash, int startedOnNodeHash, ShallowRing shallowRing){
         this.failedNodeHash = failedNodeHash;
         this.startedOnNodeHash = startedOnNodeHash;
-        this.ring = ring;
+        this.shallowRing = shallowRing;
+        this.shallowRingWithFailedNode = ((ShallowRing) shallowRing.clone());
+        this.shallowRingWithFailedNode.add(failedNodeHash);
     }
 
-    public void setCurrentNode(Node node) { this.currentNode = node; }
+    public void setCurrentNode(Node node) {
+        this.currentNode = node;
+    }
 
     @Override
     public boolean shouldProceed() {
-        return false;
+        return shallowRing.higherModular(currentNode.getHash()) == startedOnNodeHash;
     }
-
-    public void setFileList(ArrayList<FileRef> fileList){this.fileList = fileList;}
 
     @Override
     public void run(){
-        int hashNode;
-        for(FileRef fileRef : fileList) {
+        log("Running failure agent");
+        int currentNodeHash = currentNode.getHash();
+        if (currentNode.getNextNodeHash() == failedNodeHash) {
+            currentNode.setNextNodeHash(shallowRing.higherModular(currentNodeHash));
+        }
+        if (currentNode.getPrevNodeHash() == failedNodeHash) {
+            currentNode.setPrevNodeHash(shallowRing.lowerModular(currentNodeHash));
+        }
+        for(FileRef fileRef : currentNode.getFileList()) {
             if(fileRef.getLocation() == FileRefLocation.LOCAL){
-                if(ring.lowerModularEntry(Util.hash(fileRef.getFileName())) == failedNodeHash){
+                if(shallowRingWithFailedNode.lowerModular(Util.hash(fileRef.getFileName())) == failedNodeHash){
                     try {
                         currentNode.replicateFile(fileRef);
                     } catch (java.io.IOException e) {
@@ -43,6 +53,7 @@ public class FailureAgent implements Agent {
                 }
             }
         }
+        log("Running failure agent done");
     }
 
     private void log(String str) {

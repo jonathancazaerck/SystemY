@@ -15,9 +15,9 @@ class RingTest {
         ring.put(2, new InetSocketAddress(2));
         ring.put(3, new InetSocketAddress(3));
         ring.put(4, new InetSocketAddress(4));
-        assertEquals(3, ring.lowerModularEntry(4));
-        assertEquals(2, ring.lowerModularEntry(3));
-        assertEquals(1, ring.higherModularEntry(4));
-        assertEquals(4, ring.lowerModularEntry(1));
+        assertEquals(3, ring.lowerModularKey(4));
+        assertEquals(2, ring.lowerModularKey(3));
+        assertEquals(1, ring.higherModularKey(4));
+        assertEquals(4, ring.lowerModularKey(1));
     }
 }

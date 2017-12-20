@@ -16,7 +16,6 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
@@ -117,6 +116,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 this.readyRing.put(nodeHash, this.allRing.get(nodeHash));
                 break;
             case "node_shutdown":
+                this.allRing.remove(nodeHash);
+                this.readyRing.remove(nodeHash);
                 break;
             default:
                 throw new UnknownMessageException(msgType);
@@ -131,12 +132,17 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
+    public void notifyFailure(int nodeHash) {
+        this.allRing.remove(nodeHash);
+        this.readyRing.remove(nodeHash);
+    }
+
     public InetSocketAddress getAddressByHash(int hash) {
         return this.allRing.get(hash);
     }
 
     public int getNodeHashToReplicateTo(int fileHash) {
-        return this.readyRing.lowerModularEntry(fileHash);
+        return this.readyRing.lowerModularKey(fileHash);
     }
 
     public int getNumberOfNodes() {
@@ -181,6 +187,11 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         } catch (ParseException e) {
             e.printStackTrace();
         }
+    }
+
+    @Override
+    public ShallowRing getShallowRing() throws RemoteException {
+        return ShallowRing.fromRing(readyRing);
     }
 
     public void shutdown() throws RemoteException, NotBoundException {
