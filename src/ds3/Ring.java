@@ -10,7 +10,8 @@ import java.util.TreeMap;
 public class Ring extends TreeMap<Integer, InetSocketAddress> {
 
     //Method to get the hash of the previous node
-    public int lowerModularEntry(int key) {
+
+    public int lowerModularKey(int key) {
         Map.Entry<Integer, InetSocketAddress> prevEntry = this.lowerEntry(key);
 
         //If we search for the previous node from the first node, we will return the last node hash
@@ -22,7 +23,7 @@ public class Ring extends TreeMap<Integer, InetSocketAddress> {
     }
 
     //Method to get the hash of the next node
-    public int higherModularEntry(int key) {
+    public int higherModularKey(int key) {
         Map.Entry<Integer, InetSocketAddress> nextEntry = this.higherEntry(key);
 
         //If we search the next node from the last node, we will return the first node hash
@@ -32,5 +33,4 @@ public class Ring extends TreeMap<Integer, InetSocketAddress> {
             return nextEntry.getKey();
         }
     }
-
 }

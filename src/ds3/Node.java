@@ -17,6 +17,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
@@ -101,6 +102,15 @@ public class Node implements NodeLifecycleHooks {
         return nextNodeHash;
     }
 
+    public int setPrevNodeHash(int prevNodeHash) {
+        return this.prevNodeHash = prevNodeHash;
+    }
+
+    public int setNextNodeHash(int nextNodeHash) {
+        return this.nextNodeHash = nextNodeHash;
+    }
+
+
     public static void setFilesPath(Path filesPath) {
         Node.filesPath = filesPath;
     }
@@ -130,7 +140,7 @@ public class Node implements NodeLifecycleHooks {
         unicastSocket.close();
 
         if (nodeAmount == 2) {
-            new Thread(this::spawnFailureAgent).start();
+            new Thread(this::spawnFilesAgent).start();
         }
 
         startListeners();
@@ -149,9 +159,7 @@ public class Node implements NodeLifecycleHooks {
             try {
                 sendMulticast("node_ready", false);
                 replicateFiles();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (NotBoundException e) {
+            } catch (IOException | NotBoundException e) {
                 e.printStackTrace();
             }
         });
@@ -160,9 +168,7 @@ public class Node implements NodeLifecycleHooks {
             try {
                 sendMulticast("node_bound", false);
                 replicateFiles();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (NotBoundException e) {
+            } catch (IOException | NotBoundException e) {
                 e.printStackTrace();
             }
         });
@@ -197,13 +203,7 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread = new Thread(() -> {
             try {
                 listenForMulticasts();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ParseException e) {
-                e.printStackTrace();
-            } catch (UnknownMessageException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (IOException | UnknownMessageException | InterruptedException | ParseException e) {
                 e.printStackTrace();
             }
         });
@@ -430,13 +430,7 @@ public class Node implements NodeLifecycleHooks {
                 request.close();
             } catch(SocketException e) {
                 log("Closed socket, stopping file listener");
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ParseException e) {
-                e.printStackTrace();
-            } catch (UnmatchedFileSizeException e) {
-                e.printStackTrace();
-            } catch (UnknownMessageException e) {
+            } catch (IOException | UnknownMessageException | UnmatchedFileSizeException | ParseException e) {
                 e.printStackTrace();
             }
         }
@@ -458,9 +452,7 @@ public class Node implements NodeLifecycleHooks {
                 handleMulticastPacket(packet);
             } catch (SocketException e) {
                 log("Closed socket, stopping multicast listener");
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (NotBoundException e) {
+            } catch (IOException | NotBoundException e) {
                 e.printStackTrace();
             }
         }
@@ -533,7 +525,13 @@ public class Node implements NodeLifecycleHooks {
                 in.close();
                 break;
             case "agent_metadata":
-                System.out.println("Should handle agent");
+                ObjectInputStream ois = new ObjectInputStream(in);
+                try {
+                    Agent agent = (Agent) ois.readObject();
+                    startAgent(agent);
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                }
                 in.close();
                 break;
             default:
@@ -610,17 +608,34 @@ public class Node implements NodeLifecycleHooks {
         agent.setCurrentNode(this);
         new Thread(() -> {
             boolean isAlone = isAlone();
+            log("Running agent");
             agent.run();
+            log("Running agent done");
             if (isAlone) return;
             try {
                 TimeUnit.SECONDS.sleep(1);
-                sendAgentToNextNode(agent);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+                if (agent.shouldProceed()) {
+                    sendAgentToNextNode(agent);
+                } else {
+                    log("Not sending agent");
+                    spawnFilesAgent(); // TODO: for failure agent only
+                }
+            } catch (SocketException e) {
+                log("Can't send agent to " + nextNodeHash + ", starting failure agent");
+                handleFailedAgentSending(nextNodeHash);
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private void handleFailedAgentSending(int failedNodeHash) {
+        try {
+            this.nameServer.notifyFailure(failedNodeHash);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        spawnFailureAgent(failedNodeHash);
     }
 
     private void sendAgentToNextNode(Agent agent) throws IOException {
@@ -644,10 +659,21 @@ public class Node implements NodeLifecycleHooks {
         log("sent agent");
     }
 
-    private void spawnFailureAgent() {
-        log("spawning failure agent");
+    private void spawnFilesAgent() {
+        log("spawning files agent");
         Agent agent = new FilesAgent();
-        agent.setCurrentNode(this);
         startAgent(agent);
+    }
+
+
+    private void spawnFailureAgent(int failedNodeHash) {
+        log("spawning failure agent");
+        try {
+            // shallow ring does not have the failed node because of notifyFailure()
+            FailureAgent agent = new FailureAgent(failedNodeHash, hash, this.nameServer.getShallowRing());
+            startAgent(agent);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 }

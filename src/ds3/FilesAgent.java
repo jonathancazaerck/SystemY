@@ -1,6 +1,5 @@
 package ds3;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 
 public class FilesAgent implements Agent {
@@ -29,6 +28,11 @@ public class FilesAgent implements Agent {
 
             if (foundFileRef == null) nodeFileList.add(new FileRef(nodeFileRef.getFileName()));
         }
+    }
+
+    @Override
+    public boolean shouldProceed() {
+        return true;
     }
 
     private void log(String str) {
