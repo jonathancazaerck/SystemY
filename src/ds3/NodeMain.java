@@ -4,6 +4,7 @@ import org.json.simple.parser.ParseException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -13,6 +14,7 @@ public class NodeMain {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         String name = args[0];
+        if(args.length > 3) Node.setFilesPath(Paths.get(args[3]));
         int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
         InetSocketAddress address = new InetSocketAddress(args[1], port);
 
@@ -21,17 +23,17 @@ public class NodeMain {
 
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 public void run() {
-                    try {
-                        node.shutdown();
-                    } catch (RemoteException e) {
-                        e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    } catch (NodeNotReadyException e) {
-                        e.printStackTrace();
-                    }
+                try {
+                    node.shutdown();
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (NodeNotReadyException e) {
+                    e.printStackTrace();
+                }
                 }
             });
 

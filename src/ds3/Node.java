@@ -614,7 +614,12 @@ public class Node implements NodeLifecycleHooks {
             if (isAlone) return;
             try {
                 TimeUnit.SECONDS.sleep(1);
-                if (agent.shouldProceed()) sendAgentToNextNode(agent);
+                if (agent.shouldProceed()) {
+                    sendAgentToNextNode(agent);
+                } else {
+                    log("Not sending agent");
+                    spawnFilesAgent(); // TODO: for failure agent only
+                }
             } catch (SocketException e) {
                 log("Can't send agent to " + nextNodeHash + ", starting failure agent");
                 handleFailedAgentSending(nextNodeHash);

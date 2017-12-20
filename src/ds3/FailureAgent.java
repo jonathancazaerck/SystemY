@@ -29,11 +29,11 @@ public class FailureAgent implements Agent {
 
     @Override
     public boolean shouldProceed() {
-        return shallowRing.higherModular(currentNode.getHash()) == startedOnNodeHash;
+        return shallowRing.higherModular(currentNode.getHash()) != startedOnNodeHash;
     }
 
     @Override
-    public void run(){
+    public void run() {
         log("Running failure agent");
         int currentNodeHash = currentNode.getHash();
         if (currentNode.getNextNodeHash() == failedNodeHash) {
