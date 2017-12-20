@@ -43,7 +43,7 @@ public class FailureAgent implements Agent {
             currentNode.setPrevNodeHash(shallowRing.lowerModular(currentNodeHash));
         }
         for(FileRef fileRef : currentNode.getFileList()) {
-            if(fileRef.getLocation() == FileRefLocation.LOCAL){
+            if(fileRef.getLocationHash() == currentNodeHash){
                 if(shallowRingWithFailedNode.lowerModular(Util.hash(fileRef.getFileName())) == failedNodeHash){
                     try {
                         currentNode.replicateFile(fileRef);

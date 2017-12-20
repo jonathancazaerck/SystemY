@@ -7,12 +7,13 @@ import java.nio.file.Paths;
 public class FileRef {
     private String fileName;
     private boolean locked = false;
-    private FileRefLocation location;
+    private final Integer locationHash;
 
     private static Path filesPath = Paths.get("tmp/files");
 
-    public FileRef(String fileName) {
+    public FileRef(String fileName, Integer locationHash) {
         this.fileName = fileName;
+        this.locationHash = locationHash;
     }
 
     public boolean isLocked() {
@@ -27,19 +28,15 @@ public class FileRef {
         this.locked = false;
     }
 
-    public FileRefLocation getLocation() {
-        return location;
-    }
-
-    public void setLocation(FileRefLocation location) {
-        this.location = location;
+    public int getLocationHash() {
+        return locationHash;
     }
 
     public String getFileName() {
         return fileName;
     }
 
-    public File getFile(String name){
+    public File getFile(String name) {
         Path localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local", fileName);
         File file = localFilesPath.toFile();
         return file;
