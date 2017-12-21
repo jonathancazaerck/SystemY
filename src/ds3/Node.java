@@ -14,10 +14,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 public class Node implements NodeLifecycleHooks {
@@ -39,6 +36,7 @@ public class Node implements NodeLifecycleHooks {
     private final ArrayList<Runnable> onNeighboursChangedRunnables = new ArrayList<>();
     private final ArrayList<Runnable> onListeningForFilesRunnables = new ArrayList<>();
     private final ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<>();
+    private final ArrayList<Runnable> onFileListChangedRunnables = new ArrayList<>();
 
     private TreeMap<Integer, FileRef> fileList;
 
@@ -589,6 +587,11 @@ public class Node implements NodeLifecycleHooks {
     }
 
     @Override
+    public void onFileListChanged(Runnable runnable) {
+        onFileListChangedRunnables.add(runnable);
+    }
+
+    @Override
     public void onBound(Runnable runnable) {
         onBoundRunnables.add(runnable);
     }
@@ -602,7 +605,15 @@ public class Node implements NodeLifecycleHooks {
     }
 
     public void setFileList(TreeMap<Integer, FileRef> fileList) {
+        if(this.fileList != null) {
+            Set<Integer> orgSet = this.fileList.keySet();
+            Set<Integer> newSet = fileList.keySet();
+            boolean nothingChanged = orgSet.containsAll(newSet) && newSet.containsAll(orgSet);
+            if (nothingChanged) return; // if no differences
+        }
+
         this.fileList = fileList;
+        onFileListChangedRunnables.forEach(Runnable::run);
     }
 
     private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
@@ -625,7 +636,7 @@ public class Node implements NodeLifecycleHooks {
                     sendAgentToNextNode(agent);
                 } else {
                     log("Not sending agent");
-                    spawnFilesAgent(); // TODO: for failure agent only
+                    if (agent.getSort().equals("failure")) spawnFilesAgent();
                 }
             } catch (SocketException e) {
                 log("Can't send agent to " + nextNodeHash + ", starting failure agent");
@@ -650,7 +661,7 @@ public class Node implements NodeLifecycleHooks {
 
         JSONObject metadata = new JSONObject();
         metadata.put("type", "agent_metadata");
-        metadata.put("sort", "failure");
+        metadata.put("sort", agent.getSort());
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ObjectOutputStream oos = new ObjectOutputStream(baos);

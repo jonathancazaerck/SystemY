@@ -47,6 +47,11 @@ public class FilesAgent implements Agent {
         return true;
     }
 
+    @Override
+    public String getSort() {
+        return "files";
+    }
+
     private void log(String str) {
         System.out.println("[files_agent@" + currentNode.getName() + "] " + str);
     }

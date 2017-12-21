@@ -6,19 +6,17 @@ import java.awt.event.*;
 import java.util.*;
 
 public class Gui {
-    private JList fileList;
+    private JList<String> fileList;
     private JButton herladenButton;
     private JButton downloadButton;
     private JButton openButton;
     private JButton deleteButton;
     private JPanel jpanel;
-    private JLabel LabelSelectedItem;
-    private ArrayList<String> input;
+    private JLabel labelSelectedItem;
+    private Collection<FileRef> fileRefs;
     private String selectedItem;
 
     public Gui() {
-        input = new ArrayList<String>();
-        opvullen();
         herladenButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -26,18 +24,9 @@ public class Gui {
             }
         });
 
-        fileList.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 1) {
-                    int index = fileList.locationToIndex(e.getPoint());
-                    if (index >= 0) {
-                        Object o = fileList.getModel().getElementAt(index);
-                        selectedItem = o.toString();
-                        LabelSelectedItem.setText(selectedItem);
-                    }
-                }
-            }
+        fileList.addListSelectionListener(e -> {
+            selectedItem = fileList.getModel().getElementAt(fileList.getSelectedIndex());
+            labelSelectedItem.setText(selectedItem);
         });
 
         downloadButton.addMouseListener(new MouseAdapter() {
@@ -79,7 +68,7 @@ public class Gui {
         });
     }
 
-    public static void main(String[] args) {
+    public static Gui start() {
         try {
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
         } catch (ClassNotFoundException e) {
@@ -91,25 +80,27 @@ public class Gui {
         } catch (UnsupportedLookAndFeelException e) {
             e.printStackTrace();
         }
+        Gui gui = new Gui();
         JFrame frame = new JFrame("SystemY");
-        frame.setContentPane(new Gui().jpanel);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setContentPane(gui.jpanel);
+        frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         frame.pack();
         frame.setVisible(true);
+        return gui;
     }
 
     public void reload() {
-        DefaultListModel listModel = new DefaultListModel();
-        for (int i = 0; i < input.size(); i++) {
-            listModel.addElement(input.get(i));
+        DefaultListModel<String> listModel = new DefaultListModel<>();
+        for (FileRef fileRef : fileRefs) {
+            listModel.addElement(fileRef.getFileName());
+            System.out.println("[gui] added element " + fileRef.getFileName());
         }
         fileList.setModel(listModel);
     }
 
-    public void opvullen() {
-        input.add("test1.txt");
-        input.add("test2.txt");
-        input.add("test3.txt");
+    public void setFileList(Collection<FileRef> fileRefs) {
+        this.fileRefs = fileRefs;
+        reload();
     }
 
     public void showError() {
@@ -135,7 +126,7 @@ public class Gui {
         jpanel = new JPanel();
         jpanel.setLayout(new com.intellij.uiDesigner.core.GridLayoutManager(6, 3, new Insets(20, 20, 20, 20), -1, -1));
         jpanel.setPreferredSize(new Dimension(800, 600));
-        fileList = new JList();
+        fileList = new JList<String>();
         final DefaultListModel defaultListModel1 = new DefaultListModel();
         fileList.setModel(defaultListModel1);
         jpanel.add(fileList, new com.intellij.uiDesigner.core.GridConstraints(0, 0, 5, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_BOTH, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(283, 50), null, 0, false));
@@ -155,10 +146,10 @@ public class Gui {
         deleteButton = new JButton();
         deleteButton.setText("Delete");
         jpanel.add(deleteButton, new com.intellij.uiDesigner.core.GridConstraints(4, 1, 1, 2, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_CENTER, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_SHRINK | com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_CAN_GROW, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, new Dimension(30, -1), null, null, 0, false));
-        LabelSelectedItem = new JLabel();
-        LabelSelectedItem.setForeground(new Color(-16776961));
-        LabelSelectedItem.setText("");
-        jpanel.add(LabelSelectedItem, new com.intellij.uiDesigner.core.GridConstraints(0, 2, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, new Dimension(100, -1), new Dimension(100, -1), null, 0, false));
+        labelSelectedItem = new JLabel();
+        labelSelectedItem.setForeground(new Color(-16776961));
+        labelSelectedItem.setText("");
+        jpanel.add(labelSelectedItem, new com.intellij.uiDesigner.core.GridConstraints(0, 2, 1, 1, com.intellij.uiDesigner.core.GridConstraints.ANCHOR_WEST, com.intellij.uiDesigner.core.GridConstraints.FILL_NONE, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, com.intellij.uiDesigner.core.GridConstraints.SIZEPOLICY_FIXED, new Dimension(100, -1), new Dimension(100, -1), null, 0, false));
         final JLabel label2 = new JLabel();
         label2.setText("Geselecteerd:");
         label2.setVerticalAlignment(0);

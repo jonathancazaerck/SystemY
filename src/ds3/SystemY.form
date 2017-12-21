@@ -63,7 +63,7 @@
           <text value="Verwijderen"/>
         </properties>
       </component>
-      <component id="f9e59" class="javax.swing.JLabel" binding="LabelSelectedItem">
+      <component id="f9e59" class="javax.swing.JLabel" binding="labelSelectedItem">
         <constraints>
           <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="100" height="-1"/>

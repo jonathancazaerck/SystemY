@@ -50,6 +50,11 @@ public class FailureAgent implements Agent {
         }
     }
 
+    @Override
+    public String getSort() {
+        return "failure";
+    }
+
     private void log(String str) {
         System.out.println("[failure_agent@" + currentNode.getName() + "] " + str);
     }
