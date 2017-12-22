@@ -40,6 +40,8 @@ public class Node implements NodeLifecycleHooks {
 
     private TreeMap<Integer, FileRef> fileList;
 
+    private FileRef lockRequest = null;
+
     private Thread fileListenerThread;
     private Thread multicastListenerThread;
 
@@ -717,5 +719,13 @@ public class Node implements NodeLifecycleHooks {
             fileRef.getFileName());
 
         return filePath.toFile();
+    }
+
+    public void setLockRequest(FileRef fileRef){
+        this.lockRequest = fileRef;
+    }
+
+    public FileRef getLockRequest(){
+        return lockRequest;
     }
 }

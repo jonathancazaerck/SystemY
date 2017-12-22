@@ -1,12 +1,17 @@
 package ds3;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.*;
 
 public class FilesAgent implements Agent {
     private final TreeMap<Integer, FileRef> fileList = new TreeMap<>();
     private transient Node currentNode;
+
+    private Integer lockedFileNodeHash = null;
+    private FileRef lockedFile = null;
+    private Integer nodeToSendToHash = null;
 
     public void setCurrentNode(Node node) {
         this.currentNode = node;
@@ -35,6 +40,28 @@ public class FilesAgent implements Agent {
                 FileRef fileRef = new FileRef(name, currentNode.getHash());
                 fileList.put(fileHash, fileRef);
                 updatedFileRefs.add(fileRef);
+            }
+        }
+
+        if(lockedFileNodeHash == currentNode.getHash()){
+
+        }
+
+        if(lockedFileNodeHash==null && lockedFile==null){
+            lockedFile = currentNode.getLockRequest();
+            if(lockedFile!=null){
+                lockedFileNodeHash = currentNode.getHash();
+                for (FileRef updatedFileRef : updatedFileRefs){
+                    if(lockedFile.getFileNameHash() == updatedFileRef.getFileNameHash()){
+                        updatedFileRef.lock();
+                    }
+                }
+            }
+        }
+
+        if(lockedFile!=null){
+            if(lockedFile.getActualLocationHash() == currentNode.getHash()){
+                nodeToSendToHash = currentNode.getHash();
             }
         }
 
