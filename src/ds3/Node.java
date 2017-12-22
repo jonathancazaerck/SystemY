@@ -50,6 +50,10 @@ public class Node implements NodeLifecycleHooks {
         return filesPath;
     }
 
+    public static void setFilesPath(Path filesPath) {
+        Node.filesPath = filesPath;
+    }
+
     private static Path filesPath = Paths.get("tmp/files");
 
     private final Path localFilesPath;
@@ -110,10 +114,6 @@ public class Node implements NodeLifecycleHooks {
 
     public void setNextNodeHash(int nextNodeHash) {
         this.nextNodeHash = nextNodeHash;
-    }
-
-    public static void setFilesPath(Path filesPath) {
-        Node.filesPath = filesPath;
     }
 
     public Path getLocalFilesPath() {
@@ -382,24 +382,30 @@ public class Node implements NodeLifecycleHooks {
     public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
         int fileHash = Util.hash(fileRef.getFileName());
 
-        File file = fileRefToFile(fileRef);
-
         if (fileRef.getActualLocationHash() != hash) throw new FileNotPresentException();
 
         int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
 
+
         if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
-        InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
 
-        log("Replicating file " + file.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
-
-        sendFileToAddress(file, addressToDupl);
+        sendFileToNodeHash(fileRef, nodeHashToDupl);
     }
 
     public void replicateFiles(Collection<FileRef> fileRefs) throws IOException, FileNotPresentException {
         for(FileRef fileRef : fileRefs) {
             replicateFile(fileRef);
         }
+    }
+
+    public void sendFileToNodeHash(FileRef fileRef, int nodeHashToDupl) throws IOException {
+        InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
+
+        File file = fileRefToFile(fileRef);
+
+        log("Replicating file " + file.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
+
+        sendFileToAddress(file, addressToDupl);
     }
 
     private void sendFileToAddress(File file, InetSocketAddress addressToDupl) throws IOException {

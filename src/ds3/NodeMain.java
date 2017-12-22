@@ -16,13 +16,18 @@ public class NodeMain {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         String name = args[0];
-        if(args.length > 4 && args[4].equals("gui")) new Thread(() -> { gui = Gui.start(); }).start();
+        if(args.length > 4 && args[4].equals("gui")) gui = Gui.start();
         if(args.length > 3) Node.setFilesPath(Paths.get(args[3]));
         int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
         InetSocketAddress address = new InetSocketAddress(args[1], port);
 
         try {
-            Node node = new Node(name, address);
+            Node node;
+            if (gui != null) {
+                node = gui.getNode();
+            } else {
+                node = new Node(name, address);
+            }
 
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 public void run() {
@@ -40,11 +45,29 @@ public class NodeMain {
                 }
             });
 
-            node.onFileListChanged(() -> {
-                if (gui != null) {
-                    gui.setFileList(node.getFileList().values());
-                }
-            });
+            if (gui != null) {
+                gui.setStatusLabel("Searching for nameserver");
+                node.onBound(() -> {
+                    gui.setStatusLabel("Bound");
+                });
+                node.onReady(() -> {
+                    gui.setStatusLabel("Ready");
+                });
+                node.onNeighboursChanged(() -> {
+                    gui.setStatusLabel("Neighbours changed");
+                });
+                node.onFilesReplicated(() -> {
+                    gui.setStatusLabel("Replicated files");
+                });
+                node.onShutdown(() -> {
+                    gui.setStatusLabel("Shutting down");
+                });
+                node.onFileListChanged(() -> {
+                    if (gui != null) {
+                        gui.setFileList(node.getFileList().values());
+                    }
+                });
+            }
             node.start();
         } catch (RemoteException e) {
             e.printStackTrace();

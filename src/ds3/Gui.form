@@ -20,18 +20,11 @@
           <model/>
         </properties>
       </component>
-      <component id="be189" class="javax.swing.JButton" binding="herladenButton" default-binding="true">
-        <constraints>
-          <grid row="1" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
-        </constraints>
-        <properties>
-          <enabled value="true"/>
-          <text value="Herladen"/>
-        </properties>
-      </component>
       <component id="363dc" class="javax.swing.JButton" binding="downloadButton" default-binding="true">
         <constraints>
-          <grid row="2" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+          <grid row="2" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="110" height="-1"/>
+          </grid>
         </constraints>
         <properties>
           <text value="Download"/>
@@ -39,13 +32,15 @@
       </component>
       <component id="b8a22" class="javax.swing.JButton" binding="openButton" default-binding="true">
         <constraints>
-          <grid row="3" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+          <grid row="3" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="110" height="-1"/>
+          </grid>
         </constraints>
         <properties>
           <text value="Open"/>
         </properties>
       </component>
-      <component id="7aa47" class="javax.swing.JLabel">
+      <component id="7aa47" class="javax.swing.JLabel" binding="nodeInfoLabel">
         <constraints>
           <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
         </constraints>
@@ -56,7 +51,7 @@
       <component id="dc5e7" class="javax.swing.JButton" binding="deleteButton" default-binding="true">
         <constraints>
           <grid row="4" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
-            <minimum-size width="30" height="-1"/>
+            <minimum-size width="110" height="-1"/>
           </grid>
         </constraints>
         <properties>
@@ -67,24 +62,52 @@
         <constraints>
           <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
             <minimum-size width="100" height="-1"/>
-            <preferred-size width="100" height="-1"/>
+            <preferred-size width="100" height="22"/>
           </grid>
         </constraints>
         <properties>
-          <foreground color="-16776961"/>
-          <text value=""/>
+          <foreground color="-16777216"/>
+          <text value="/"/>
         </properties>
       </component>
       <component id="f301d" class="javax.swing.JLabel">
         <constraints>
           <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
-            <preferred-size width="87" height="16"/>
+            <preferred-size width="87" height="22"/>
           </grid>
         </constraints>
         <properties>
           <text value="Geselecteerd:"/>
           <verticalAlignment value="0"/>
           <verticalTextPosition value="1"/>
+        </properties>
+      </component>
+      <component id="cca0a" class="javax.swing.JLabel" binding="statusLabel">
+        <constraints>
+          <grid row="5" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <text value="Status"/>
+        </properties>
+      </component>
+      <component id="dcb69" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <preferred-size width="68" height="33"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="File locatie:"/>
+        </properties>
+      </component>
+      <component id="acd5a" class="javax.swing.JLabel" binding="fileLocation">
+        <constraints>
+          <grid row="1" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <preferred-size width="5" height="33"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="/"/>
         </properties>
       </component>
     </children>
