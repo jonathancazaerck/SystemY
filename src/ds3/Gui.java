@@ -32,7 +32,9 @@ public class Gui {
     private Path nodeFilesPath;
 
     private Runnable onClickDownloadRunnable;
-    private FileRef clickedDownloadFile;
+    private Runnable onClickOpenRunnable;
+    private Runnable onClickDeleteRunnable;
+
 
     public Gui() {
         fileList.addListSelectionListener(e -> {
@@ -58,7 +60,6 @@ public class Gui {
             public void actionPerformed(ActionEvent e) {
                 if (selectedFile != null) {
                     JOptionPane.showMessageDialog(jpanel, "Het bestand: " + selectedFile.getFileName() + " wordt gedownloaded.", "Bericht", JOptionPane.INFORMATION_MESSAGE);
-                    clickedDownloadFile = fileRefs.get(fileList.getSelectedIndex());
                     onClickDownloadRunnable.run();
                 } else {
                     showError();
@@ -71,6 +72,7 @@ public class Gui {
             public void actionPerformed(ActionEvent e) {
                 if (selectedFile != null) {
                     JOptionPane.showMessageDialog(jpanel, "Het bestand: " + selectedFile.getFileName() + " wordt geopend.", "Bericht", JOptionPane.INFORMATION_MESSAGE);
+                    onClickOpenRunnable.run();
                 } else {
                     showError();
                 }
@@ -83,10 +85,12 @@ public class Gui {
                 if (selectedFile != null) {
                     String[] options = {"Ja", "Nee"};
                     int i = JOptionPane.showOptionDialog(jpanel, "Wilt u het bestand: " + selectedFile.getFileName() + " verwijderen?", "Bericht", 0, JOptionPane.WARNING_MESSAGE, null, options, null);
-                    if (i == 0)
+                    if (i == 0) {
                         System.out.println("File will be deleted!");
-                    else
+                        onClickDeleteRunnable.run();
+                    } else {
                         System.out.println("User makes a mistake!");
+                    }
                 } else {
                     showError();
                 }
@@ -193,8 +197,16 @@ public class Gui {
         onClickDownloadRunnable = r;
     }
 
-    public FileRef getClickedDownloadFile() {
-        return clickedDownloadFile;
+    public void onClickOpen(Runnable r) {
+        this.onClickOpenRunnable = r;
+    }
+
+    public void onClickDelete(Runnable r) {
+        this.onClickDeleteRunnable = r;
+    }
+
+    public FileRef getSelectedFile() {
+        return selectedFile;
     }
 
 

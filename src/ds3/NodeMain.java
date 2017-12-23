@@ -2,6 +2,7 @@ package ds3;
 
 import org.json.simple.parser.ParseException;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Paths;
@@ -70,11 +71,27 @@ public class NodeMain {
                 });
                 gui.onClickDownload(() -> {
                     try {
-                        node.sendFileDownloadRequest(gui.getClickedDownloadFile());
+                        node.sendFileDownloadRequest(gui.getSelectedFile());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
                 });
+                gui.onClickOpen(() -> {
+                    System.out.println("Opening file " + gui.getSelectedFile().getFileName());
+                    try {
+                        File file = node.fileRefToFile(gui.getSelectedFile(), true);
+                        OSHelper.openFile(file);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+//                gui.onClickDelete(() -> {
+//                    try {
+//                        node.sendFileDownloadRequest(gui.getSelectedFile());
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                });
             }
             node.start();
         } catch (RemoteException e) {

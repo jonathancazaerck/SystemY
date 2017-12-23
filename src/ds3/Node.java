@@ -738,11 +738,21 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
-    private File fileRefToFile(FileRef fileRef) {
+    public File fileRefToFile(FileRef fileRef) {
+        return fileRefToFile(fileRef, false);
+    }
+
+    public File fileRefToFile(FileRef fileRef, boolean isDownload) {
+        String dirName;
+        if (isDownload) {
+            dirName = "downloads";
+        } else {
+            dirName = fileRef.isLocationDisappeared() ? "replicated" : "local";
+        }
         Path filePath = Paths.get(
             Node.getFilesPath().toAbsolutePath().toString(),
             name,
-            fileRef.isLocationDisappeared() ? "replicated" : "local",
+            dirName,
             fileRef.getFileName());
 
         return filePath.toFile();
