@@ -53,9 +53,9 @@ public class Gui {
             }
         });
 
-        downloadButton.addMouseListener(new MouseAdapter() {
+        downloadButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 if (selectedFile != null) {
                     JOptionPane.showMessageDialog(jpanel, "Het bestand: " + selectedFile.getFileName() + " wordt gedownloaded.", "Bericht", JOptionPane.INFORMATION_MESSAGE);
                     clickedDownloadFile = fileRefs.get(fileList.getSelectedIndex());
@@ -66,9 +66,9 @@ public class Gui {
             }
         });
 
-        openButton.addMouseListener(new MouseAdapter() {
+        openButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 if (selectedFile != null) {
                     JOptionPane.showMessageDialog(jpanel, "Het bestand: " + selectedFile.getFileName() + " wordt geopend.", "Bericht", JOptionPane.INFORMATION_MESSAGE);
                 } else {
@@ -77,9 +77,9 @@ public class Gui {
             }
         });
 
-        deleteButton.addMouseListener(new MouseAdapter() {
+        deleteButton.addActionListener(new ActionListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
+            public void actionPerformed(ActionEvent e) {
                 if (selectedFile != null) {
                     String[] options = {"Ja", "Nee"};
                     int i = JOptionPane.showOptionDialog(jpanel, "Wilt u het bestand: " + selectedFile.getFileName() + " verwijderen?", "Bericht", 0, JOptionPane.WARNING_MESSAGE, null, options, null);
