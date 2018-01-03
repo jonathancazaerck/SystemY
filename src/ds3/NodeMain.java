@@ -2,12 +2,14 @@ package ds3;
 
 import org.json.simple.parser.ParseException;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Paths;
 import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.ArrayList;
 
 public class NodeMain {
     private static Gui gui;
@@ -64,9 +66,32 @@ public class NodeMain {
                 });
                 node.onFileListChanged(() -> {
                     if (gui != null) {
-                        gui.setFileList(node.getFileList().values());
+                        gui.setFileList(new ArrayList<FileRef>(node.getFileList().values()));
                     }
                 });
+                gui.onClickDownload(() -> {
+                    try {
+                        node.sendFileDownloadRequest(gui.getSelectedFile());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+                gui.onClickOpen(() -> {
+                    System.out.println("Opening file " + gui.getSelectedFile().getFileName());
+                    try {
+                        File file = node.fileRefToFile(gui.getSelectedFile(), true);
+                        OSHelper.openFile(file);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+//                gui.onClickDelete(() -> {
+//                    try {
+//                        node.sendFileDownloadRequest(gui.getSelectedFile());
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
+//                });
             }
             node.start();
         } catch (RemoteException e) {

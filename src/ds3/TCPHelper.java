@@ -24,13 +24,14 @@ public abstract class TCPHelper {
             metadataBuffer.put(metadata.toJSONString().getBytes());
             out.write(metadataBuffer.array(), 0, Constants.FILE_METADATA_LENGTH);
 
-            while ((count = bis.read(fileOutputBuffer)) >= 0) {
-                out.write(fileOutputBuffer, 0, count);
-                out.flush();
+            if (bis != null) {
+                while ((count = bis.read(fileOutputBuffer)) >= 0) {
+                    out.write(fileOutputBuffer, 0, count);
+                    out.flush();
+                }
             }
-
             out.close();
-            bis.close();
+            if (bis != null) bis.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -38,5 +39,9 @@ public abstract class TCPHelper {
         socket.close();
 
         return fileOutputBuffer;
+    }
+
+    public static void sendRequest(InetSocketAddress address, JSONObject metadata) throws IOException {
+        sendRequest(address, metadata, null);
     }
 }

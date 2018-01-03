@@ -38,7 +38,7 @@ public class Node implements NodeLifecycleHooks {
     private final ArrayList<Runnable> onListeningForMulticastsRunnables = new ArrayList<>();
     private final ArrayList<Runnable> onFileListChangedRunnables = new ArrayList<>();
 
-    private TreeMap<Integer, FileRef> fileList;
+    private TreeMap<Integer, FileRef> fileList = new TreeMap<>();
 
     private FileRef lockRequest = null;
 
@@ -60,6 +60,7 @@ public class Node implements NodeLifecycleHooks {
 
     private final Path localFilesPath;
     private final Path replicatedFilesPath;
+    private final Path downloadsFilesPath;
 
     private ServerSocket serverSocket;
     private MulticastSocket multicastSocket;
@@ -78,9 +79,11 @@ public class Node implements NodeLifecycleHooks {
 
         this.localFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "local"); //e.g. tmp/files/jill/local
         this.replicatedFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "replicated"); //e.g. tmp/files/jill/replicated
+        this.downloadsFilesPath = Paths.get(filesPath.toAbsolutePath().toString(), name, "downloads"); //e.g. tmp/files/jill/downloads
 
         this.localFilesPath.toFile().mkdirs(); //creates directory with this pathname
         this.replicatedFilesPath.toFile().mkdirs(); //creates directory with this pathname
+        this.downloadsFilesPath.toFile().mkdirs();
 
         FileUtils.cleanDirectory(this.replicatedFilesPath.toFile()); //cleans directory without deleting it
     }
@@ -123,15 +126,16 @@ public class Node implements NodeLifecycleHooks {
     }
 
     public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException, InterruptedException {
-        System.setProperty("java.net.preferIPv4Stack", "true");
+
+        System.setProperty("java.net.preferIPv4Stack", "true"); //Disable IPv6
 
         unicastSocket = new DatagramSocket(address.getPort());
 
         log("Multicasting node hello: " + name + " at " + address.toString());
-        sendMulticast("node_hello", true);
+        sendMulticast("node_hello", true); //send multicast from type node_hello
 
         log("Listening for nameserver hello");
-        int nodeAmount = waitForNameServerHello();
+        int nodeAmount = waitForNameServerHello(); //wait for answer from nameserver
         log("Received nameserver hello");
 
         setupRegistry();
@@ -146,11 +150,28 @@ public class Node implements NodeLifecycleHooks {
 
         unicastSocket.close();
 
+        setupInitialFileList();
+
         if (nodeAmount == 2) {
             new Thread(this::spawnFilesAgent).start();
         }
 
         startListeners();
+    }
+
+    private void setupInitialFileList() {
+        File[] localFiles = this.getLocalFilesPath().toFile().listFiles();
+
+        if (localFiles == null) return;
+
+        for (File localFile : localFiles) {
+            String name = localFile.getName();
+            int fileHash = Util.hash(name);
+            FileRef fileRef = new FileRef(name, this.getHash());
+            this.fileList.put(fileHash, fileRef);
+        }
+
+        onFileListChangedRunnables.forEach(Runnable::run);
     }
 
     private void setupRegistry() throws RemoteException, NotBoundException {
@@ -218,15 +239,19 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread.join();
     }
 
+    //Method to send mutlicasts
     private void sendMulticast(String type, boolean fullInfo) throws IOException {
-        JSONObject msg = new JSONObject();
+        JSONObject msg = new JSONObject();//Making a new JSONObject to send uni/multicasts
         msg.put("type", type);
         msg.put("hash", hash);
+        //When fullInfo is true, more information is given because the node sends to the nameserver
+        //When fullInfo is false, only type and hash are send because the node only sends to other nodes
         if(fullInfo) {
             msg.put("name", name);
             msg.put("ip", address.getHostString());
             msg.put("port", address.getPort());
         }
+        //Make and send the multicast message
         String msgStr = msg.toJSONString();
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
@@ -236,18 +261,19 @@ public class Node implements NodeLifecycleHooks {
         socket.close();
     }
 
+    //Methode to wait for answer of nameserver to multicast from type "node_hello"
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         unicastSocket.receive(packet);
 
         JSONObject obj = Util.extractJSONFromPacket(packet);
-        String msgType = (String) obj.get("type");
+        String msgType = (String) obj.get("type"); //get the type of the message
 
         switch (msgType) {
             case "nameserver_hello":
-                this.nameServerIp = InetAddress.getByName((String) obj.get("ip"));
-                int nodeAmount = (int) (long) obj.get("amount");
+                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-adres
+                int nodeAmount = (int) (long) obj.get("amount"); //get the ammount of the nodes in the network
                 log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
                 return nodeAmount;
             default:
@@ -298,24 +324,34 @@ public class Node implements NodeLifecycleHooks {
         unicastSocket.close();
     }
 
+    // Method to handle the neighbours of an existing node when a new node is made
+    // Also let the new node know what is changed
     private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException, InterruptedException {
-        boolean isAlone = hash == prevNodeHash;
-        boolean isFirstNode = hash < prevNodeHash;
-        boolean isLastNode = nextNodeHash < hash;
+        boolean isAlone = hash == prevNodeHash; // this node is alone in the network
+        boolean isFirstNode = hash < prevNodeHash; // this node is the first
+        boolean isLastNode = nextNodeHash < hash; // this node is the last
         Integer changedHash = null;
 
         log("Getting notified of new node: this = " + hash + ", next = " + nextNodeHash + ", prev = " + prevNodeHash + ", new = " + newNodeHash);
 
+        // if this node is alone OR newNodeHash is between hash and nextNodeHash OR this hash is the last node and the newNodeHash is bigger than this hash or smaller than the next hash
         if (isAlone || (hash < newNodeHash && newNodeHash < nextNodeHash) || (isLastNode && (hash < newNodeHash || newNodeHash < nextNodeHash))) {
             this.nextNodeHash = changedHash = newNodeHash;
             log(newNodeHash + " is new next");
         }
         // can be both prev and next
+        // if this node is alone OR newNodeHash is between prevNodeHash and hash OR this hash is the first node and the newNodeHash is bigger than prev hash or smaller than this hash
         if (isAlone || (prevNodeHash < newNodeHash && newNodeHash < hash) || (isFirstNode && (prevNodeHash < newNodeHash || newNodeHash < hash))) {
             this.prevNodeHash = changedHash = newNodeHash;
             log(newNodeHash + " is new prev");
         }
 
+        // if something changed, a new message is made (type: "node_reveal")
+        // this message is send to the new node to let him know:
+        // - which node hash this is
+        // - what the previous node hash is
+        // - what the next node hash is
+        // in other words: the already existing node reveals himself to the new node
         if (changedHash != null) {
             JSONObject responseMsg = new JSONObject();
             responseMsg.put("type", "node_reveal");
@@ -391,7 +427,7 @@ public class Node implements NodeLifecycleHooks {
 
         if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
 
-        sendFileToNodeHash(fileRef, nodeHashToDupl);
+        sendFileToNodeHash(fileRef, nodeHashToDupl, false);
     }
 
     public void replicateFiles(Collection<FileRef> fileRefs) throws IOException, FileNotPresentException {
@@ -400,17 +436,17 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
-    public void sendFileToNodeHash(FileRef fileRef, int nodeHashToDupl) throws IOException {
+    public void sendFileToNodeHash(FileRef fileRef, int nodeHashToDupl, boolean isDownload) throws IOException {
         InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
 
         File file = fileRefToFile(fileRef);
 
         log("Replicating file " + file.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
 
-        sendFileToAddress(file, addressToDupl);
+        sendFileToAddress(file, addressToDupl, isDownload);
     }
 
-    private void sendFileToAddress(File file, InetSocketAddress addressToDupl) throws IOException {
+    private void sendFileToAddress(File file, InetSocketAddress addressToDupl, boolean isDownload) throws IOException {
         FileInputStream fis = new FileInputStream(file);
         long fileSize = fis.getChannel().size();
 
@@ -418,6 +454,7 @@ public class Node implements NodeLifecycleHooks {
         metadata.put("type", "file_metadata");
         metadata.put("name", file.getName());
         metadata.put("size", fileSize);
+        metadata.put("download", isDownload);
 
         BufferedInputStream bfis = new BufferedInputStream(fis);
 
@@ -471,14 +508,15 @@ public class Node implements NodeLifecycleHooks {
     }
 
     private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException, InterruptedException {
-        JSONObject obj = Util.extractJSONFromPacket(packet);
+        JSONObject msg = Util.extractJSONFromPacket(packet); //make JSONObject from multicast packet
 
-        String msgType = (String) obj.get("type");
+        String msgType = (String) msg.get("type"); //save "type" into msgType
 
-        int sourceNodeHash = (int) (long) obj.get("hash");
+        int sourceNodeHash = (int) (long) msg.get("hash"); //save hash into sourceNodeHash
+
         log("Received multicast message from " + sourceNodeHash + ": " + msgType);
 
-        if (sourceNodeHash == this.hash) return;
+        if (sourceNodeHash == this.hash) return; //all hashes are unique, so if we are sending to ourself => return
 
         switch (msgType) {
             case "node_hello":
@@ -491,10 +529,10 @@ public class Node implements NodeLifecycleHooks {
                 break;
             case "node_shutdown":
                 if (this.prevNodeHash == sourceNodeHash) {
-                    this.prevNodeHash = (int) (long) obj.get("prev_hash");
+                    this.prevNodeHash = (int) (long) msg.get("prev_hash");
                 }
                 if (this.nextNodeHash == sourceNodeHash) {
-                    this.nextNodeHash = (int) (long) obj.get("next_hash");
+                    this.nextNodeHash = (int) (long) msg.get("next_hash");
                 }
                 break;
             default:
@@ -530,7 +568,8 @@ public class Node implements NodeLifecycleHooks {
             case "file_metadata":
                 long expectedFileSize = (long) metadata.get("size");
                 String fileName = (String) metadata.get("name");
-                handleIncomingFile(fileName, expectedFileSize, in);
+                boolean isDownload = (Boolean) metadata.get("download");
+                handleIncomingFile(fileName, expectedFileSize, in, isDownload);
                 in.close();
                 break;
             case "agent_metadata":
@@ -543,6 +582,13 @@ public class Node implements NodeLifecycleHooks {
                 }
                 in.close();
                 break;
+            case "node_download_request":
+                System.out.println("Received NDR: " + metadata);
+                int fileHash = (int) (long) metadata.get("file_hash");
+                FileRef file = fileList.get(fileHash);
+                int nodeHash = (int) (long) metadata.get("hash");
+                sendFileToNodeHash(file, nodeHash, true);
+                break;
             default:
                 in.close();
                 throw new UnknownMessageException(metadataType);
@@ -550,8 +596,8 @@ public class Node implements NodeLifecycleHooks {
 
     }
 
-    private void handleIncomingFile(String fileName, long expectedFileSize, InputStream in) throws IOException, UnmatchedFileSizeException {
-        Path filePath = Paths.get(replicatedFilesPath.toString(), fileName);
+    private void handleIncomingFile(String fileName, long expectedFileSize, InputStream in, boolean isDownload) throws IOException, UnmatchedFileSizeException {
+        Path filePath = Paths.get((isDownload ? downloadsFilesPath : replicatedFilesPath).toString(), fileName);
 
         log("Writing file " + fileName + " to " + filePath);
 
@@ -624,12 +670,6 @@ public class Node implements NodeLifecycleHooks {
         onFileListChangedRunnables.forEach(Runnable::run);
     }
 
-    private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
-        ObjectInputStream ois = new ObjectInputStream(in);
-        Agent agent = (Agent) ois.readObject();
-        startAgent(agent);
-    }
-
     private void startAgent(Agent agent) {
         agent.setCurrentNode(this);
         new Thread(() -> {
@@ -691,7 +731,6 @@ public class Node implements NodeLifecycleHooks {
         startAgent(agent);
     }
 
-
     private void spawnFailureAgent(int failedNodeHash) {
         log("spawning failure agent");
         try {
@@ -711,11 +750,21 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
-    private File fileRefToFile(FileRef fileRef) {
+    public File fileRefToFile(FileRef fileRef) {
+        return fileRefToFile(fileRef, false);
+    }
+
+    public File fileRefToFile(FileRef fileRef, boolean isDownload) {
+        String dirName;
+        if (isDownload) {
+            dirName = "downloads";
+        } else {
+            dirName = fileRef.isLocationDisappeared() ? "replicated" : "local";
+        }
         Path filePath = Paths.get(
             Node.getFilesPath().toAbsolutePath().toString(),
             name,
-            fileRef.isLocationDisappeared() ? "replicated" : "local",
+            dirName,
             fileRef.getFileName());
 
         return filePath.toFile();
@@ -725,7 +774,20 @@ public class Node implements NodeLifecycleHooks {
         this.lockRequest = fileRef;
     }
 
-    public FileRef getLockRequest(){
+    public FileRef getLockRequest() {
         return lockRequest;
+    }
+    
+    public void sendFileDownloadRequest(FileRef fileRef) throws IOException {
+        JSONObject msg = new JSONObject();
+        msg.put("type", "node_download_request");
+        msg.put("hash", this.hash);
+        msg.put("file_hash", fileRef.getFileNameHash());
+
+        InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(fileRef.getLocationHash());
+
+        TCPHelper.sendRequest(nodeAddress, msg);
+
+        log("Sending download request to " + nodeAddress.toString() + " for file " + fileRef.getFileName() + "(file is on " + fileRef.getLocationHash() + ")");
     }
 }
