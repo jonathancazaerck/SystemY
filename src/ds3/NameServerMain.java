@@ -9,10 +9,11 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.RemoteException;
 
 public class NameServerMain {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws CliException {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         try {
+            if (args.length < 1) throw new CliException("Missing argument: IP");
             InetAddress ip = InetAddress.getByName(args[0]);
 
             NameServer nameServer = new NameServer(ip);

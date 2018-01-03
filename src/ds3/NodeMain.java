@@ -10,24 +10,35 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class NodeMain {
     private static Gui gui;
 
-    public static void main(String[] args) {
-        System.setProperty("java.net.preferIPv4Stack", "true");
+    public static void main(String[] args) throws CliException {
+        mainGeneral(args, false);
+    }
 
-        String name = args[0];
-        if(args.length > 4 && args[4].equals("gui")) gui = Gui.start();
-        if(args.length > 3) Node.setFilesPath(Paths.get(args[3]));
-        int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
-        InetSocketAddress address = new InetSocketAddress(args[1], port);
+    public static void mainWithGui(String[] args) throws CliException {
+        mainGeneral(args, true);
+    }
+
+    public static void mainGeneral(String[] args, boolean enableGui) throws CliException {
+        System.setProperty("java.net.preferIPv4Stack", "true");
 
         try {
             Node node;
-            if (gui != null) {
+            if (enableGui) {
+                gui = Gui.start();
                 node = gui.getNode();
             } else {
+                if (args.length < 1) throw new CliException("Missing argument: name");
+                if (args.length < 2) throw new CliException("Missing argument: IP");
+                String name = args[0];
+                int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
+                InetSocketAddress address = new InetSocketAddress(args[1], port);
+                if (args.length > 3) Node.setFilesPath(Paths.get(args[3]));
+                if ((args.length > 4 && args[4].equals("gui"))) gui = Gui.start();
                 node = new Node(name, address);
             }
 

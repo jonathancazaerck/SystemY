@@ -39,13 +39,36 @@ dependencies {
 buildscript {
     repositories {
         mavenCentral()
+        maven {
+            url 'https://plugins.gradle.org/m2/'
+        }
     }
     dependencies {
         classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.2'
+        classpath 'gradle.plugin.edu.sc.seis:macAppBundle:2.1.9'
+        classpath 'edu.sc.seis.gradle:launch4j:2.4.2'
     }
 }
 
 apply plugin: 'org.junit.platform.gradle.plugin'
+apply plugin: 'edu.sc.seis.macAppBundle'
+apply plugin: 'edu.sc.seis.launch4j'
+
+macAppBundle {
+    appName = 'SystemY Node'
+    mainClassName = 'ds3.NodeMainGui'
+    icon = 'res/icon.icns'
+    bundleJRE = true
+    javaProperties.put('apple.laf.useScreenMenuBar', 'true')
+}
+createDmg.enabled = false;
+
+launch4j {
+    outfile = 'SystemY Node.exe'
+    productName = 'SystemY Node'
+    mainClassName = 'ds3.NodeMainGui'
+    //icon = 'res/icon.ico'
+}
 
 junitPlatform {
     details 'tree'
