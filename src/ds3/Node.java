@@ -116,15 +116,16 @@ public class Node implements NodeLifecycleHooks {
     }
 
     public void start() throws AlreadyBoundException, IOException, NotBoundException, ParseException, UnknownMessageException, InterruptedException {
-        System.setProperty("java.net.preferIPv4Stack", "true");
+
+        System.setProperty("java.net.preferIPv4Stack", "true"); //Disable IPv6
 
         unicastSocket = new DatagramSocket(address.getPort());
 
         log("Multicasting node hello: " + name + " at " + address.toString());
-        sendMulticast("node_hello", true);
+        sendMulticast("node_hello", true); //send multicast from type node_hello
 
         log("Listening for nameserver hello");
-        int nodeAmount = waitForNameServerHello();
+        int nodeAmount = waitForNameServerHello(); //wait for answer from nameserver
         log("Received nameserver hello");
 
         setupRegistry();
@@ -213,15 +214,19 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread.join();
     }
 
+    //Method to send mutlicasts
     private void sendMulticast(String type, boolean fullInfo) throws IOException {
-        JSONObject msg = new JSONObject();
+        JSONObject msg = new JSONObject();//Making a new JSONObject to send uni/multicasts
         msg.put("type", type);
         msg.put("hash", hash);
+        //When fullInfo is true, more information is given because the node sends to the nameserver
+        //When fullInfo is false, only type and hash are send because the node only sends to other nodes
         if(fullInfo) {
             msg.put("name", name);
             msg.put("ip", address.getHostString());
             msg.put("port", address.getPort());
         }
+        //Make and send the multicast message
         String msgStr = msg.toJSONString();
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         MulticastSocket socket = new MulticastSocket(Constants.MULTICAST_PORT);
@@ -231,18 +236,19 @@ public class Node implements NodeLifecycleHooks {
         socket.close();
     }
 
+    //Methode to wait for answer of nameserver to multicast from type "node_hello"
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
         unicastSocket.receive(packet);
 
         JSONObject obj = Util.extractJSONFromPacket(packet);
-        String msgType = (String) obj.get("type");
+        String msgType = (String) obj.get("type"); //get the type of the message
 
         switch (msgType) {
             case "nameserver_hello":
-                this.nameServerIp = InetAddress.getByName((String) obj.get("ip"));
-                int nodeAmount = (int) (long) obj.get("amount");
+                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-adres
+                int nodeAmount = (int) (long) obj.get("amount"); //get the ammount of the nodes in the network
                 log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
                 return nodeAmount;
             default:
@@ -293,24 +299,34 @@ public class Node implements NodeLifecycleHooks {
         unicastSocket.close();
     }
 
+    // Method to handle the neighbours of an existing node when a new node is made
+    // Also let the new node know what is changed
     private void handleNodeBound(int newNodeHash) throws IOException, NotBoundException, InterruptedException {
-        boolean isAlone = hash == prevNodeHash;
-        boolean isFirstNode = hash < prevNodeHash;
-        boolean isLastNode = nextNodeHash < hash;
+        boolean isAlone = hash == prevNodeHash; // this node is alone in the network
+        boolean isFirstNode = hash < prevNodeHash; // this node is the first
+        boolean isLastNode = nextNodeHash < hash; // this node is the last
         Integer changedHash = null;
 
         log("Getting notified of new node: this = " + hash + ", next = " + nextNodeHash + ", prev = " + prevNodeHash + ", new = " + newNodeHash);
 
+        // if this node is alone OR newNodeHash is between hash and nextNodeHash OR this hash is the last node and the newNodeHash is bigger than this hash or smaller than the next hash
         if (isAlone || (hash < newNodeHash && newNodeHash < nextNodeHash) || (isLastNode && (hash < newNodeHash || newNodeHash < nextNodeHash))) {
             this.nextNodeHash = changedHash = newNodeHash;
             log(newNodeHash + " is new next");
         }
         // can be both prev and next
+        // if this node is alone OR newNodeHash is between prevNodeHash and hash OR this hash is the first node and the newNodeHash is bigger than prev hash or smaller than this hash
         if (isAlone || (prevNodeHash < newNodeHash && newNodeHash < hash) || (isFirstNode && (prevNodeHash < newNodeHash || newNodeHash < hash))) {
             this.prevNodeHash = changedHash = newNodeHash;
             log(newNodeHash + " is new prev");
         }
 
+        // if something changed, a new message is made (type: "node_reveal")
+        // this message is send to the new node to let him know:
+        // - which node hash this is
+        // - what the previous node hash is
+        // - what the next node hash is
+        // in other words: the already existing node reveals himself to the new node
         if (changedHash != null) {
             JSONObject responseMsg = new JSONObject();
             responseMsg.put("type", "node_reveal");
@@ -461,14 +477,14 @@ public class Node implements NodeLifecycleHooks {
     }
 
     private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException, InterruptedException {
-        JSONObject obj = Util.extractJSONFromPacket(packet);
+        JSONObject obj = Util.extractJSONFromPacket(packet); //make JSONObject from multicast packet
 
-        String msgType = (String) obj.get("type");
+        String msgType = (String) obj.get("type"); //save "type" into msgType
 
-        int sourceNodeHash = (int) (long) obj.get("hash");
+        int sourceNodeHash = (int) (long) obj.get("hash"); //save hash into sourceNodeHash
         log("Received multicast message from " + sourceNodeHash + ": " + msgType);
 
-        if (sourceNodeHash == this.hash) return;
+        if (sourceNodeHash == this.hash) return; //all hashes are unique, so if we are sending to ourself => return
 
         switch (msgType) {
             case "node_hello":
@@ -664,7 +680,6 @@ public class Node implements NodeLifecycleHooks {
         Agent agent = new FilesAgent();
         startAgent(agent);
     }
-
 
     private void spawnFailureAgent(int failedNodeHash) {
         log("spawning failure agent");

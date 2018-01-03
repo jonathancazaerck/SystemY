@@ -19,10 +19,14 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
+
+    //allRing is a type Ring and contains all the nodes
     private final Ring allRing = new Ring();
+    //readyRing is a type Ring and contains all the nodes which are fully integrated and ready
     private final Ring readyRing = new Ring();
     private final InetAddress ip;
 
+    //Runnable = functions that needs to be excecuted
     private final ArrayList<Runnable> onReadyRunnables = new ArrayList<Runnable>();
     private final ArrayList<Runnable> onShutdownRunnables = new ArrayList<Runnable>();
 
@@ -30,38 +34,48 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     private boolean isShuttingDown = false;
 
+    //Registry for RMI
     private Registry registry;
 
+    //NameServer constructor
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
     }
 
     public void start() throws IOException, AlreadyBoundException, ParseException, UnknownMessageException, ExistingNodeException {
+
+        //Disable IPv6
         System.setProperty("java.net.preferIPv4Stack", "true");
 
+        //REGISTRY FOR RMI
+        //--------------------------------------------------------------------------------------------------------------------------------------
         log("Creating registry");
-        registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT);
+        registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT); //create a remote object registry that accepts calls on REGISTRY_PORT
         log("Created registry");
 
         log("Binding this to registry");
-        registry.bind("NameServer", this);
+        registry.bind("NameServer", this); //binds a remote reference to the specified name in this registry
         log("Bound this to registry");
+        //--------------------------------------------------------------------------------------------------------------------------------------
 
-        InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
-        multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
-        multicastSocket.joinGroup(multicastIp);
-
+        //MULTICASTS
+        //--------------------------------------------------------------------------------------------------------------------------------------
+        InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP); //determines the ip adres of the host
+        multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT); //make new multicastSocket
+        multicastSocket.joinGroup(multicastIp); //let the ip adres of the host join the multicastSocket group
         log("Ready to receive multicasts");
+        //--------------------------------------------------------------------------------------------------------------------------------------
+
 
         log("Running ready hooks");
-        onReadyRunnables.forEach(Runnable::run);
+        onReadyRunnables.forEach(Runnable::run); //do each function in the list onReadyRunnables
 
-        while(!this.isShuttingDown) {
-            byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+        while(!this.isShuttingDown) { //if isShuttingDown is false:
+            byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE]; //byte array with MAX_MESSAGE_SIZE size
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length); //constructs a DatagramPacket for receiving packets of length MAX_MESSAGE_SIZE
             try {
-                multicastSocket.receive(packet);
+                multicastSocket.receive(packet); //when a message is received from any of the multicastIp's, it will be stored in packet
                 handleMulticastPacket(packet);
             } catch (SocketException e) {
                 log("Closed socket, stopping");
@@ -75,6 +89,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         onShutdownRunnables.forEach(Runnable::run);
     }
 
+    //With this method, the nameserver can response to multicasts. Nodes can send four kinds of multicasts.
+    // - node_hello =>
     private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, InterruptedException {
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
@@ -82,29 +98,31 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         int nodeHash = ((int) (long) obj.get("hash"));
 
         switch (msgType) {
-            case "node_hello":
-                String nodeName = (String) obj.get("name");
-                InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip"));
-                int nodePort = ((Long) obj.get("port")).intValue();
-                InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort);
+            case "node_hello": //multicast from node to nameserver with parameters type, hash, name, ip and port
+                String nodeName = (String) obj.get("name"); //get name into nodeName
+                InetAddress nodeIp = InetAddress.getByName((String) obj.get("ip")); //get ip into nodeIp
+                int nodePort = ((Long) obj.get("port")).intValue(); //get port into nodePort
+                InetSocketAddress nodeAddress = new InetSocketAddress(nodeIp, nodePort); //creates socket address from nodeIp en nodePort
 
                 try {
-                    this.registerNode(nodeHash, nodeAddress);
+                    this.registerNode(nodeHash, nodeAddress); //add node to allRing
                     log("Registered node " + nodeName + " with address " + nodeAddress.toString());
                 } catch (ExistingNodeException e) {
                     log(e.getMessage());
                     return;
                 }
 
+                // make a response message to answer to the nodes multicast
                 JSONObject responseMsg = new JSONObject();
                 responseMsg.put("type", "nameserver_hello");
                 responseMsg.put("ip", this.ip.getHostAddress());
-                responseMsg.put("amount", getNumberOfNodes());
+                responseMsg.put("amount", getNumberOfNodes()); // how many nodes are there in the network
                 String responseStr = responseMsg.toJSONString();
 
                 DatagramSocket datagramSocket = new DatagramSocket();
-
                 TimeUnit.MILLISECONDS.sleep(100); // between sending and listening
+
+                // send response to nodeIP with nodePort
                 log("Sending nameserver hello to " + nodeName + " at " + nodeAddress.toString());
                 datagramSocket.send(new DatagramPacket(responseStr.getBytes(), responseStr.length(), nodeIp, nodePort));
                 datagramSocket.close();
@@ -124,6 +142,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
+    //Method to add new node. If the node allready exist, an exception will be throwed.
+    //Otherwise the node is add to the allRing of type Ring (treemap)
     private void registerNode(int hash, InetSocketAddress address) throws ExistingNodeException {
         if(this.allRing.containsKey(hash)) {
             throw new ExistingNodeException(hash);
@@ -132,19 +152,22 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
+    //Methode to remove a node when it fails, given the hash of the node.
     public void notifyFailure(int nodeHash) {
         this.allRing.remove(nodeHash);
         this.readyRing.remove(nodeHash);
     }
 
-    public InetSocketAddress getAddressByHash(int hash) {
-        return this.allRing.get(hash);
+    //Get the IP adres from node with nodeHash
+    public InetSocketAddress getAddressByHash(int nodeHash) {
+        return this.allRing.get(nodeHash);
     }
 
     public int getNodeHashToReplicateTo(int fileHash) {
         return this.readyRing.lowerModularKey(fileHash);
     }
 
+    //Get number of all nodes
     public int getNumberOfNodes() {
         return this.allRing.size();
     }
@@ -201,16 +224,19 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         UnicastRemoteObject.unexportObject(this.registry, true);
     }
 
+    //Method to add to the list onReadyRunnables
     @Override
     public void onReady(Runnable runnable) {
         onReadyRunnables.add(runnable);
     }
 
+    //Method to add to the list onShutdownRunnables
     @Override
     public void onShutdown(Runnable runnable) {
         onShutdownRunnables.add(runnable);
     }
 
+    //Method to print
     private void log(String str) {
         System.out.println("[nameserver] " + str);
     }
