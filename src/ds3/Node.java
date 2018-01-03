@@ -668,12 +668,6 @@ public class Node implements NodeLifecycleHooks {
         onFileListChangedRunnables.forEach(Runnable::run);
     }
 
-    private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
-        ObjectInputStream ois = new ObjectInputStream(in);
-        Agent agent = (Agent) ois.readObject();
-        startAgent(agent);
-    }
-
     private void startAgent(Agent agent) {
         agent.setCurrentNode(this);
         new Thread(() -> {
