@@ -11,7 +11,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.util.Arrays;
 
+
 public abstract class Util {
+
+    //Method to generate hash codes.
     public static int hash(String str) {
         return Math.abs(str.hashCode()%32768);
     }
