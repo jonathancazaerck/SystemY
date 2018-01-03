@@ -10,6 +10,7 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class NodeMain {
     private static Gui gui;
@@ -17,8 +18,14 @@ public class NodeMain {
     public static void main(String[] args) {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
-        String name = args[0];
-        if(args.length > 4 && args[4].equals("gui")) gui = Gui.start();
+        String name;
+        if (System.getProperty("ds3.enableGui").equals("true")) {
+            gui = Gui.start();
+            name = "system-y-app-"+new Random().nextInt(99);
+        } else {
+            name = args[0];
+        }
+        if((args.length > 4 && args[4].equals("gui"))) gui = Gui.start();
         if(args.length > 3) Node.setFilesPath(Paths.get(args[3]));
         int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
         InetSocketAddress address = new InetSocketAddress(args[1], port);
