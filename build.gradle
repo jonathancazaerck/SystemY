@@ -67,7 +67,7 @@ launch4j {
     outfile = 'SystemY Node.exe'
     productName = 'SystemY Node'
     mainClassName = 'ds3.NodeMainGui'
-    icon = 'res/icon.ico'
+    //icon = 'res/icon.ico'
 }
 
 junitPlatform {
