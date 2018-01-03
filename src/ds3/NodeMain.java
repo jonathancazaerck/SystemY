@@ -19,7 +19,7 @@ public class NodeMain {
         System.setProperty("java.net.preferIPv4Stack", "true");
 
         String name;
-        if (System.getProperty("ds3.enableGui").equals("true")) {
+        if (System.getProperty("ds3.enableGui") != null) {
             gui = Gui.start();
             name = "system-y-app-"+new Random().nextInt(99);
         } else {
