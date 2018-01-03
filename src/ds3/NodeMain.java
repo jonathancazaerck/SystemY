@@ -70,11 +70,7 @@ public class NodeMain {
                     }
                 });
                 gui.onClickDownload(() -> {
-                    try {
-                        node.sendFileDownloadRequest(gui.getSelectedFile());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    node.setLockRequest(gui.getSelectedFile());
                 });
                 gui.onClickOpen(() -> {
                     System.out.println("Opening file " + gui.getSelectedFile().getFileName());

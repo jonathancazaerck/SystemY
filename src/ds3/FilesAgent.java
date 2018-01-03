@@ -46,6 +46,7 @@ public class FilesAgent implements Agent {
             lockedFile = currentNode.getLockRequest();
 
             if (lockedFile != null){
+                currentNode.removeLockRequest();
                 log("Locking file: " + lockedFile.getFileName());
                 lockedFileRequesterNodeHash = currentNode.getHash();
 

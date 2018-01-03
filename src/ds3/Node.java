@@ -777,17 +777,8 @@ public class Node implements NodeLifecycleHooks {
     public FileRef getLockRequest() {
         return lockRequest;
     }
-    
-    public void sendFileDownloadRequest(FileRef fileRef) throws IOException {
-        JSONObject msg = new JSONObject();
-        msg.put("type", "node_download_request");
-        msg.put("hash", this.hash);
-        msg.put("file_hash", fileRef.getFileNameHash());
 
-        InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(fileRef.getLocationHash());
-
-        TCPHelper.sendRequest(nodeAddress, msg);
-
-        log("Sending download request to " + nodeAddress.toString() + " for file " + fileRef.getFileName() + "(file is on " + fileRef.getLocationHash() + ")");
+    public void removeLockRequest() {
+        lockRequest = null;
     }
 }
