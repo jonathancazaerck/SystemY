@@ -9,9 +9,8 @@ public class FilesAgent implements Agent {
     private final TreeMap<Integer, FileRef> fileList = new TreeMap<>();
     private transient Node currentNode;
 
-    private Integer lockedFileNodeHash = null;
     private FileRef lockedFile = null;
-    private Integer nodeToSendToHash = null;
+    private Integer lockedFileRequesterNodeHash = null;
 
     public void setCurrentNode(Node node) {
         this.currentNode = node;
@@ -22,7 +21,7 @@ public class FilesAgent implements Agent {
         log("starting");
 
         File[] localFiles = currentNode.getLocalFilesPath().toFile().listFiles();
-        if(localFiles == null) return;
+        if (localFiles == null) return;
         TreeSet<FileRef> updatedFileRefs = new TreeSet<>();
 
         for (FileRef fileRef : fileList.values()) {
@@ -43,26 +42,30 @@ public class FilesAgent implements Agent {
             }
         }
 
-        if(lockedFileNodeHash == currentNode.getHash()){
-
-        }
-
-        if(lockedFileNodeHash==null && lockedFile==null){
+        if (lockedFile == null) {
             lockedFile = currentNode.getLockRequest();
-            if(lockedFile!=null){
-                lockedFileNodeHash = currentNode.getHash();
+
+            if (lockedFile != null){
+                log("Locking file: " + lockedFile.getFileName());
+                lockedFileRequesterNodeHash = currentNode.getHash();
+
+                // find the fileref in own list, and lock
+                // TODO: waarom de fok gebeurt dit zelfs
                 for (FileRef updatedFileRef : updatedFileRefs){
                     if(lockedFile.getFileNameHash() == updatedFileRef.getFileNameHash()){
                         updatedFileRef.lock();
                     }
                 }
             }
-        }
-
-        if(lockedFile!=null){
-            if(lockedFile.getActualLocationHash() == currentNode.getHash()){
-                nodeToSendToHash = currentNode.getHash();
+        } else if (lockedFile.getActualLocationHash() == currentNode.getHash()) {
+            log("Arrived at locked file location");
+            try {
+                currentNode.sendFileToNodeHash(lockedFile, lockedFileRequesterNodeHash, true);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
+            lockedFile = null;
+            lockedFileRequesterNodeHash = null;
         }
 
         currentNode.setFileList(fileList);
