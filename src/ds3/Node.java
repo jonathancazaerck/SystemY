@@ -47,6 +47,7 @@ public class Node implements NodeLifecycleHooks {
 
     private boolean listeningToFiles = false;
     private boolean listeningToMulticasts = false;
+    private long lastFilesAgentSeenTime = 0;
 
     public static Path getFilesPath() {
         return filesPath;
@@ -155,6 +156,8 @@ public class Node implements NodeLifecycleHooks {
         if (nodeAmount == 2) {
             new Thread(this::spawnFilesAgent).start();
         }
+
+        startAgentTimeoutChecker();
 
         startListeners();
     }
@@ -565,6 +568,9 @@ public class Node implements NodeLifecycleHooks {
                 ObjectInputStream ois = new ObjectInputStream(in);
                 try {
                     Agent agent = (Agent) ois.readObject();
+                    if (agent.getSort().equals("files")) {
+                        lastFilesAgentSeenTime = System.currentTimeMillis();
+                    }
                     startAgent(agent);
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
@@ -769,5 +775,23 @@ public class Node implements NodeLifecycleHooks {
 
     public void removeLockRequest() {
         lockRequest = null;
+    }
+
+    private void startAgentTimeoutChecker() {
+        int timeout = 5 + new Random().nextInt(20);
+        new Thread(() -> {
+            while (true) {
+                try {
+                    if (lastFilesAgentSeenTime != 0 &&
+                            System.currentTimeMillis() - lastFilesAgentSeenTime > timeout * 1000) {
+                        log("Haven't seen files agent in " + timeout + " seconds, spawning new");
+                        spawnFilesAgent();
+                    }
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }
