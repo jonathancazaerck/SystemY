@@ -79,9 +79,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 handleMulticastPacket(packet);
             } catch (SocketException e) {
                 log("Closed socket, stopping");
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (InterruptedException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }
@@ -205,9 +203,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
                 int port = Integer.parseInt(v[1]);
                 allRing.put(Integer.parseInt(entry.getKey()), new InetSocketAddress(ip, port));
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
+        } catch (IOException | ParseException e) {
             e.printStackTrace();
         }
     }

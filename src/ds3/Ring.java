@@ -2,9 +2,7 @@ package ds3;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
-
 
 //This class represents the node ring. It's a subclass from Treemap. The treemap contains the hash and the ip-adres
 public class Ring extends TreeMap<Integer, InetSocketAddress> {

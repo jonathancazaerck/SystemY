@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<form xmlns="http://www.intellij.com/uidesigner/form/" version="1" bind-to-class="ds3.Gui">
+  <grid id="27dc6" binding="jpanel" layout-manager="GridLayoutManager" row-count="6" column-count="3" same-size-horizontally="false" same-size-vertically="false" hgap="-1" vgap="-1">
+    <margin top="20" left="20" bottom="20" right="20"/>
+    <constraints>
+      <xy x="20" y="20" width="666" height="400"/>
+    </constraints>
+    <properties>
+      <preferredSize width="800" height="600"/>
+    </properties>
+    <border type="none"/>
+    <children>
+      <component id="89244" class="javax.swing.JList" binding="fileList">
+        <constraints>
+          <grid row="0" column="0" row-span="5" col-span="1" vsize-policy="6" hsize-policy="2" anchor="0" fill="3" indent="0" use-parent-layout="false">
+            <preferred-size width="283" height="50"/>
+          </grid>
+        </constraints>
+        <properties>
+          <model/>
+        </properties>
+      </component>
+      <component id="363dc" class="javax.swing.JButton" binding="downloadButton" default-binding="true">
+        <constraints>
+          <grid row="2" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="110" height="-1"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="Download"/>
+        </properties>
+      </component>
+      <component id="b8a22" class="javax.swing.JButton" binding="openButton" default-binding="true">
+        <constraints>
+          <grid row="3" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="110" height="-1"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="Open"/>
+        </properties>
+      </component>
+      <component id="7aa47" class="javax.swing.JLabel" binding="nodeInfoLabel">
+        <constraints>
+          <grid row="5" column="0" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <text value="Cazaerck Jonathan - Claes Jill - Havermans Elias - Wirtz Hans Otto"/>
+        </properties>
+      </component>
+      <component id="dc5e7" class="javax.swing.JButton" binding="deleteButton" default-binding="true">
+        <constraints>
+          <grid row="4" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="3" anchor="0" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="110" height="-1"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="Verwijderen"/>
+        </properties>
+      </component>
+      <component id="f9e59" class="javax.swing.JLabel" binding="selectedItemLabel">
+        <constraints>
+          <grid row="0" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <minimum-size width="100" height="-1"/>
+            <preferred-size width="100" height="22"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="/"/>
+        </properties>
+      </component>
+      <component id="f301d" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="0" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <preferred-size width="87" height="22"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="Geselecteerd:"/>
+          <verticalAlignment value="0"/>
+          <verticalTextPosition value="1"/>
+        </properties>
+      </component>
+      <component id="cca0a" class="javax.swing.JLabel" binding="statusLabel">
+        <constraints>
+          <grid row="5" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="0" fill="0" indent="0" use-parent-layout="false"/>
+        </constraints>
+        <properties>
+          <text value="Status"/>
+        </properties>
+      </component>
+      <component id="dcb69" class="javax.swing.JLabel">
+        <constraints>
+          <grid row="1" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <preferred-size width="68" height="33"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="File locatie:"/>
+        </properties>
+      </component>
+      <component id="acd5a" class="javax.swing.JLabel" binding="fileLocationLabel">
+        <constraints>
+          <grid row="1" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false">
+            <preferred-size width="5" height="33"/>
+          </grid>
+        </constraints>
+        <properties>
+          <text value="/"/>
+        </properties>
+      </component>
+    </children>
+  </grid>
+</form>
