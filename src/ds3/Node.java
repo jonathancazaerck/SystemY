@@ -70,6 +70,8 @@ public class Node implements NodeLifecycleHooks {
 
     private NameServerOperations nameServer;
 
+    private boolean receivedNameServerHello;
+
     public Node(String name, InetSocketAddress address) throws IOException {
         super();
         this.name = name;
@@ -131,9 +133,7 @@ public class Node implements NodeLifecycleHooks {
 
         unicastSocket = new DatagramSocket(address.getPort());
 
-        log("Multicasting node hello: " + name + " at " + address.toString());
-        sendMulticast("node_hello", true); //send multicast from type node_hello
-
+        sendRetryingHello();
         log("Listening for nameserver hello");
         int nodeAmount = waitForNameServerHello(); //wait for answer from nameserver
         log("Received nameserver hello");
@@ -157,6 +157,22 @@ public class Node implements NodeLifecycleHooks {
         }
 
         startListeners();
+    }
+
+    private void sendRetryingHello() {
+        new Thread(() -> {
+            while(!receivedNameServerHello) {
+                try {
+                    log("Multicasting node hello: " + name + " at " + address.toString());
+                    sendMulticast("node_hello", true);
+                    TimeUnit.SECONDS.sleep(2);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     private void setupInitialFileList() {
@@ -239,9 +255,9 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread.join();
     }
 
-    //Method to send mutlicasts
+    //Method to send multicasts
     private void sendMulticast(String type, boolean fullInfo) throws IOException {
-        JSONObject msg = new JSONObject();//Making a new JSONObject to send uni/multicasts
+        JSONObject msg = new JSONObject(); //Making a new JSONObject to send uni/multicasts
         msg.put("type", type);
         msg.put("hash", hash);
         //When fullInfo is true, more information is given because the node sends to the nameserver
@@ -261,7 +277,7 @@ public class Node implements NodeLifecycleHooks {
         socket.close();
     }
 
-    //Methode to wait for answer of nameserver to multicast from type "node_hello"
+    //Method to wait for answer of nameserver to multicast from type "node_hello"
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -272,8 +288,9 @@ public class Node implements NodeLifecycleHooks {
 
         switch (msgType) {
             case "nameserver_hello":
-                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-adres
-                int nodeAmount = (int) (long) obj.get("amount"); //get the ammount of the nodes in the network
+                receivedNameServerHello = true;
+                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-address
+                int nodeAmount = (int) (long) obj.get("amount"); //get the amount of the nodes in the network
                 log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
                 return nodeAmount;
             default:
@@ -388,34 +405,6 @@ public class Node implements NodeLifecycleHooks {
         this.fileListenerThread.join();
         this.multicastListenerThread.join();
     }
-
-//    private void replicateFiles() throws IOException, NotBoundException {
-//        replicateFiles(null);
-//    }
-//
-//    private void replicateFiles(Integer limitHash) throws IOException, NotBoundException {
-//        if(isAlone()) return;
-//
-//        File[] localFiles = localFilesPath.toFile().listFiles();
-//        if(localFiles == null) return;
-//
-//        for (File localFile : localFiles) {
-//            int fileHash = Util.hash(name);
-//
-//            int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
-//
-//            if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
-//            if (limitHash != null && nodeHashToDupl != limitHash) continue;
-//
-//            InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
-//
-//            log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
-//
-//            sendFileToAddress(localFile, addressToDupl);
-//        }
-//
-//        this.onFilesReplicatedRunnables.forEach(Runnable::run);
-//    }
 
     public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
         int fileHash = Util.hash(fileRef.getFileName());
