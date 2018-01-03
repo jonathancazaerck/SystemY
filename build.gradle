@@ -57,7 +57,7 @@ apply plugin: 'edu.sc.seis.launch4j'
 macAppBundle {
     appName = 'SystemY Node'
     mainClassName = 'ds3.NodeMainGui'
-    icon = 'res/icon.icns'
+    icon = "$rootDir/res/icon.icns"
     bundleJRE = true
     javaProperties.put('apple.laf.useScreenMenuBar', 'true')
 }
@@ -67,7 +67,7 @@ launch4j {
     outfile = 'SystemY Node.exe'
     productName = 'SystemY Node'
     mainClassName = 'ds3.NodeMainGui'
-    //icon = 'res/icon.ico'
+    icon = "$rootDir/res/icon.ico"
 }
 
 junitPlatform {
