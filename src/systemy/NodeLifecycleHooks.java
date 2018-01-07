@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public interface NodeLifecycleHooks extends LifecycleHooks {
     void onReady(Runnable runnable);

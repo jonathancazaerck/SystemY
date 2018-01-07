@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public class UnmatchedFileSizeException extends Exception {
     public UnmatchedFileSizeException(String name, long expectedSize, long actualSize) {

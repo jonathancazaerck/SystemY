@@ -1,4 +1,4 @@
-import ds3.Ring;
+import systemy.Ring;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

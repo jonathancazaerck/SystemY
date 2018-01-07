@@ -1,9 +1,8 @@
-package ds3;
+package systemy;
 
 import org.json.simple.JSONObject;
 
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;

@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public class ExistingNodeException extends Exception {
     public ExistingNodeException(int hash) {

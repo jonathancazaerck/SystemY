@@ -1,9 +1,9 @@
 /.idea
 .DS_Store
 /.gradle
-ds3.iml
-ds3.ipr
-ds3.iws
+systemy.iml
+systemy.ipr
+systemy.iws
 /build
 /out
 /tmp

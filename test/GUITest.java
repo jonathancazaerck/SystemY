@@ -1,4 +1,4 @@
-import ds3.Gui;
+import systemy.Gui;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -56,7 +56,7 @@ apply plugin: 'edu.sc.seis.launch4j'
 
 macAppBundle {
     appName = 'SystemY Node'
-    mainClassName = 'ds3.NodeMainGui'
+    mainClassName = 'systemy.NodeMainGui'
     icon = "$rootDir/res/icon.icns"
     bundleJRE = true
     javaProperties.put('apple.laf.useScreenMenuBar', 'true')
@@ -66,7 +66,7 @@ createDmg.enabled = false;
 launch4j {
     outfile = 'SystemY Node.exe'
     productName = 'SystemY Node'
-    mainClassName = 'ds3.NodeMainGui'
+    mainClassName = 'systemy.NodeMainGui'
     icon = "$rootDir/res/icon.ico"
 }
 
@@ -98,7 +98,7 @@ task nodeJarTask(type: Jar) {
 
     manifest {
         attributes(
-                'Main-Class': 'ds3.NodeMain',
+                'Main-Class': 'systemy.NodeMain',
                 'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
         )
     }
@@ -116,7 +116,7 @@ task nameserverJarTask(type: Jar) {
 
     manifest {
         attributes(
-                'Main-Class': 'ds3.NameServerMain',
+                'Main-Class': 'systemy.NameServerMain',
                 'Class-Path': configurations.compile.collect { it.getName() }.join(' ')
         )
     }

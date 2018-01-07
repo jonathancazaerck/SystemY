@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;

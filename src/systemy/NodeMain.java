@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 import org.json.simple.parser.ParseException;
 
@@ -10,7 +10,6 @@ import java.rmi.AlreadyBoundException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Random;
 
 public class NodeMain {
     private static Gui gui;

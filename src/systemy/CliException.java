@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public class CliException extends Exception {
     CliException(String message) {

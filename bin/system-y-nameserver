@@ -1,2 +1,2 @@
 #!/bin/bash
-java -jar ~/Code/java/ds3/build/libs/nameserver.jar "$@"
+java -jar ~/Code/java/systemy/build/libs/nameserver.jar "$@"

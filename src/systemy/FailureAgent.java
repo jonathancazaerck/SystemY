@@ -1,9 +1,4 @@
-package ds3;
-
-import java.io.Serializable;
-import java.rmi.RemoteException;
-import java.util.ArrayList;
-import java.util.Collection;
+package systemy;
 
 public class FailureAgent implements Agent {
     private int failedNodeHash;

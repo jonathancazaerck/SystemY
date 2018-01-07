@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public class NodeNotReadyException extends Exception {
     NodeNotReadyException(String name) {

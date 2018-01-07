@@ -1,2 +1,2 @@
 #!/bin/bash
-java -jar ~/Code/java/ds3/build/libs/node.jar "$@"
+java -jar ~/Code/java/systemy/build/libs/node.jar "$@"

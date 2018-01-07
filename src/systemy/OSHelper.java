@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 import java.awt.*;
 import java.io.File;

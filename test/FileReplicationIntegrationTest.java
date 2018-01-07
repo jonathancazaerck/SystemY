@@ -1,5 +1,5 @@
-import ds3.NameServer;
-import ds3.Node;
+import systemy.NameServer;
+import systemy.Node;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
@@ -10,7 +10,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

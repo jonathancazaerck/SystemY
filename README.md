@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/jonathancazaerck/ds3.svg?branch=replicateFiles)](https://travis-ci.org/jonathancazaerck/ds3)
+[![Build Status](https://travis-ci.org/jonathancazaerck/systemy.svg?branch=replicateFiles)](https://travis-ci.org/jonathancazaerck/systemy)
 
 # System Y
 

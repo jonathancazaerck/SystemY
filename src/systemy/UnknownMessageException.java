@@ -1,4 +1,4 @@
-package ds3;
+package systemy;
 
 public class UnknownMessageException extends Exception {
     public UnknownMessageException(String type) {

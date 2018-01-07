@@ -1,8 +1,7 @@
-package ds3;
+package systemy;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.*;
 
 public class FilesAgent implements Agent {

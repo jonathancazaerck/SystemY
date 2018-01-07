@@ -1,9 +1,6 @@
-package ds3;
+package systemy;
 
-import java.io.File;
 import java.io.Serializable;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class FileRef implements Serializable, Comparable<FileRef> {
     private String fileName;
