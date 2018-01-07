@@ -40,11 +40,14 @@ public class Node implements NodeLifecycleHooks {
 
     private TreeMap<Integer, FileRef> fileList = new TreeMap<>();
 
+    private FileRef lockRequest = null;
+
     private Thread fileListenerThread;
     private Thread multicastListenerThread;
 
     private boolean listeningToFiles = false;
     private boolean listeningToMulticasts = false;
+    private long lastFilesAgentSeenTime = 0;
 
     public static Path getFilesPath() {
         return filesPath;
@@ -67,6 +70,8 @@ public class Node implements NodeLifecycleHooks {
     private InetAddress nameServerIp;
 
     private NameServerOperations nameServer;
+
+    private boolean receivedNameServerHello;
 
     public Node(String name, InetSocketAddress address) throws IOException {
         super();
@@ -129,9 +134,7 @@ public class Node implements NodeLifecycleHooks {
 
         unicastSocket = new DatagramSocket(address.getPort());
 
-        log("Multicasting node hello: " + name + " at " + address.toString());
-        sendMulticast("node_hello", true); //send multicast from type node_hello
-
+        sendRetryingHello();
         log("Listening for nameserver hello");
         int nodeAmount = waitForNameServerHello(); //wait for answer from nameserver
         log("Received nameserver hello");
@@ -154,11 +157,28 @@ public class Node implements NodeLifecycleHooks {
             new Thread(this::spawnFilesAgent).start();
         }
 
+        startAgentTimeoutChecker();
+
         startListeners();
     }
 
 
-    //Method to set up the initial files.
+    private void sendRetryingHello() {
+        new Thread(() -> {
+            while(!receivedNameServerHello) {
+                try {
+                    log("Multicasting node hello: " + name + " at " + address.toString());
+                    sendMulticast("node_hello", true);
+                    TimeUnit.SECONDS.sleep(2);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
+
     private void setupInitialFileList() {
         File[] localFiles = this.getLocalFilesPath().toFile().listFiles();
 
@@ -239,9 +259,9 @@ public class Node implements NodeLifecycleHooks {
         this.multicastListenerThread.join();
     }
 
-    //Method to send mutlicasts
+    //Method to send multicasts
     private void sendMulticast(String type, boolean fullInfo) throws IOException {
-        JSONObject msg = new JSONObject();//Making a new JSONObject to send uni/multicasts
+        JSONObject msg = new JSONObject(); //Making a new JSONObject to send uni/multicasts
         msg.put("type", type);
         msg.put("hash", hash);
         //When fullInfo is true, more information is given because the node sends to the nameserver
@@ -261,7 +281,7 @@ public class Node implements NodeLifecycleHooks {
         socket.close();
     }
 
-    //Methode to wait for answer of nameserver to multicast from type "node_hello"
+    //Method to wait for answer of nameserver to multicast from type "node_hello"
     private int waitForNameServerHello() throws IOException, ParseException, UnknownMessageException {
         byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
@@ -272,8 +292,9 @@ public class Node implements NodeLifecycleHooks {
 
         switch (msgType) {
             case "nameserver_hello":
-                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-adres
-                int nodeAmount = (int) (long) obj.get("amount"); //get the ammount of the nodes in the network
+                receivedNameServerHello = true;
+                this.nameServerIp = InetAddress.getByName((String) obj.get("ip")); //get nameserver IP-address
+                int nodeAmount = (int) (long) obj.get("amount"); //get the amount of the nodes in the network
                 log("Received nameserver hello: " + nameServerIp.toString() + " amount: " + nodeAmount);
                 return nodeAmount;
             default:
@@ -592,6 +613,9 @@ public class Node implements NodeLifecycleHooks {
                 ObjectInputStream ois = new ObjectInputStream(in);
                 try {
                     Agent agent = (Agent) ois.readObject();
+                    if (agent.getSort().equals("files")) {
+                        lastFilesAgentSeenTime = System.currentTimeMillis();
+                    }
                     startAgent(agent);
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
@@ -684,12 +708,6 @@ public class Node implements NodeLifecycleHooks {
 
         this.fileList = fileList;
         onFileListChangedRunnables.forEach(Runnable::run);
-    }
-
-    private void deserializeAgent(InputStream in) throws IOException, ClassNotFoundException {
-        ObjectInputStream ois = new ObjectInputStream(in);
-        Agent agent = (Agent) ois.readObject();
-        startAgent(agent);
     }
 
     private void startAgent(Agent agent) {
@@ -792,16 +810,33 @@ public class Node implements NodeLifecycleHooks {
         return filePath.toFile();
     }
 
-    public void sendFileDownloadRequest(FileRef fileRef) throws IOException {
-        JSONObject msg = new JSONObject();
-        msg.put("type", "node_download_request");
-        msg.put("hash", this.hash);
-        msg.put("file_hash", fileRef.getFileNameHash());
+    public void setLockRequest(FileRef fileRef){
+        this.lockRequest = fileRef;
+    }
 
-        InetSocketAddress nodeAddress = this.nameServer.getAddressByHash(fileRef.getLocationHash());
+    public FileRef getLockRequest() {
+        return lockRequest;
+    }
 
-        TCPHelper.sendRequest(nodeAddress, msg);
+    public void removeLockRequest() {
+        lockRequest = null;
+    }
 
-        log("Sending download request to " + nodeAddress.toString() + " for file " + fileRef.getFileName() + "(file is on " + fileRef.getLocationHash() + ")");
+    private void startAgentTimeoutChecker() {
+        int timeout = 5 + new Random().nextInt(20);
+        new Thread(() -> {
+            while (true) {
+                try {
+                    if (lastFilesAgentSeenTime != 0 &&
+                            System.currentTimeMillis() - lastFilesAgentSeenTime > timeout * 1000) {
+                        log("Haven't seen files agent in " + timeout + " seconds, spawning new");
+                        spawnFilesAgent();
+                    }
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 }
