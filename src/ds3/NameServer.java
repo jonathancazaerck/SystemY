@@ -88,7 +88,6 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
     }
 
     //With this method, the nameserver can response to multicasts. Nodes can send four kinds of multicasts.
-    // - node_hello =>
     private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, InterruptedException {
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
@@ -127,13 +126,13 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
                 break;
             case "node_bound":
-                break;
+                break; // do nothing
             case "node_ready":
-                this.readyRing.put(nodeHash, this.allRing.get(nodeHash));
+                this.readyRing.put(nodeHash, this.allRing.get(nodeHash)); // node is ready and can put into readyRing
                 break;
             case "node_shutdown":
-                this.allRing.remove(nodeHash);
-                this.readyRing.remove(nodeHash);
+                this.allRing.remove(nodeHash); // remove node from allRing
+                this.readyRing.remove(nodeHash); // remove node from readyRing
                 break;
             default:
                 throw new UnknownMessageException(msgType);
@@ -161,6 +160,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         return this.allRing.get(nodeHash);
     }
 
+    //We always replicate to a lower hash ID
     public int getNodeHashToReplicateTo(int fileHash) {
         return this.readyRing.lowerModularKey(fileHash);
     }

@@ -96,7 +96,7 @@ public class Node implements NodeLifecycleHooks {
         return name;
     }
 
-    //methode to get the hash of the node
+    //method to get the hash of the node
     public int getHash() {
         return hash;
     }
@@ -157,6 +157,8 @@ public class Node implements NodeLifecycleHooks {
         startListeners();
     }
 
+
+    //Method to set up the initial files.
     private void setupInitialFileList() {
         File[] localFiles = this.getLocalFilesPath().toFile().listFiles();
 
@@ -279,15 +281,17 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
+    // Method to handle a "node_reveal" message
     private void waitForReveals(int nodeAmount) throws IOException, ParseException, UnknownMessageException, InterruptedException, NotBoundException {
         int revealCount = 0;
-        int revealCountNeeded = Math.min(nodeAmount - 1, 2);
+        int revealCountNeeded = Math.min(nodeAmount - 1, 2); //math.min returns the smallest number
 
         byte[] buffer = new byte[Constants.MAX_MESSAGE_SIZE];
         log("Listening for " + revealCountNeeded + " reveals");
 
+        //
         while(revealCount < revealCountNeeded) {
-            DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+            DatagramPacket packet = new DatagramPacket(buffer, buffer.length); // new datagrampacket with length from buffer
             unicastSocket.receive(packet);
 
             JSONObject obj = Util.extractJSONFromPacket(packet);
@@ -295,17 +299,21 @@ public class Node implements NodeLifecycleHooks {
 
             switch (msgType) {
                 case "node_reveal":
-                    revealCount += 1;
-                    int sourceNodeHash = (int) (long) obj.get("hash");
-                    int sourceNodePrevHash = (int) (long) obj.get("prev_hash");
-                    int sourceNodeNextHash = (int) (long) obj.get("next_hash");
+                    revealCount += 1; // revealCount + 1
+                    int sourceNodeHash = (int) (long) obj.get("hash"); // hash from the node that wants to reveal himself
+                    int sourceNodePrevHash = (int) (long) obj.get("prev_hash"); // previous hash ""
+                    int sourceNodeNextHash = (int) (long) obj.get("next_hash"); // next hash ""
                     log("Received reveal: " + obj.toJSONString());
 
                     boolean changed = false;
+
+                    //if the hash of this node is the same as the previous hash of the revealed node
                     if (this.hash == sourceNodePrevHash) {
                         this.nextNodeHash = sourceNodeHash;
                         changed = true;
                     }
+
+                    //if the hash of this node is the same as the next hash of the revealed node
                     if (this.hash == sourceNodeNextHash) {
                         this.prevNodeHash = sourceNodeHash;
                         changed = true;
@@ -371,9 +379,10 @@ public class Node implements NodeLifecycleHooks {
         }
     }
 
+    // Method to shutdown the node
     public void shutdown() throws IOException, InterruptedException, NodeNotReadyException {
-        this.isShuttingDown = true;
 
+        this.isShuttingDown = true;
         this.onShutdownRunnables.forEach(Runnable::run);
 
         if (this.serverSocket == null || this.multicastSocket == null) {
@@ -415,15 +424,17 @@ public class Node implements NodeLifecycleHooks {
 //        this.onFilesReplicatedRunnables.forEach(Runnable::run);
 //    }
 
+    // Methode to replicate a file.
+    // Invoked by replicateFiles method
+    // Input is the reference to the file we want to replicate
     public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
-        int fileHash = Util.hash(fileRef.getFileName());
+        int fileHash = Util.hash(fileRef.getFileName()); //calculate the hash of the file
 
         if (fileRef.getActualLocationHash() != hash) throw new FileNotPresentException();
 
-        int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
+        int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash); //node hash where we want to replicate to
 
-
-        if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
+        if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash; //if the nodehash is the same as this node, replicate to the previous node
 
         sendFileToNodeHash(fileRef, nodeHashToDupl, false);
     }
@@ -461,6 +472,9 @@ public class Node implements NodeLifecycleHooks {
         log("File " + file.getName() + " is transferred!");
     }
 
+    // Method to listen for files in the server.
+    // A server socket waits for requests to come in over the network
+    // and returns a result to the requester.
     private void listenForFiles() throws IOException {
         this.serverSocket = new ServerSocket(this.address.getPort());
         this.serverSocket.setReuseAddress(true);
@@ -482,6 +496,9 @@ public class Node implements NodeLifecycleHooks {
         this.serverSocket.close();
     }
 
+    // Method to listen on the right port to multicasts
+    // If a multicast is received, jump to handleMulticastPacket
+    // This method is invoked in the thread multicastListenerThread
     private void listenForMulticasts() throws IOException, UnknownMessageException, ParseException, InterruptedException {
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP);
         this.multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT);
@@ -505,11 +522,12 @@ public class Node implements NodeLifecycleHooks {
         this.multicastSocket.close();
     }
 
+    // Method to handle four kinds of multicasts
+    // Invoked in method listenForMulticasts
     private void handleMulticastPacket(DatagramPacket packet) throws UnknownMessageException, IOException, ParseException, NotBoundException, InterruptedException {
+
         JSONObject msg = Util.extractJSONFromPacket(packet); //make JSONObject from multicast packet
-
         String msgType = (String) msg.get("type"); //save "type" into msgType
-
         int sourceNodeHash = (int) (long) msg.get("hash"); //save hash into sourceNodeHash
 
         log("Received multicast message from " + sourceNodeHash + ": " + msgType);
@@ -518,12 +536,12 @@ public class Node implements NodeLifecycleHooks {
 
         switch (msgType) {
             case "node_hello":
-                break;
+                break; // do nothing
             case "node_bound":
-                handleNodeBound(sourceNodeHash);
+                handleNodeBound(sourceNodeHash); // choose new neighbours
                 break;
             case "node_ready":
-                removeRedunantFiles(sourceNodeHash);
+                removeRedunantFiles(sourceNodeHash); // check later
                 break;
             case "node_shutdown":
                 if (this.prevNodeHash == sourceNodeHash) {
