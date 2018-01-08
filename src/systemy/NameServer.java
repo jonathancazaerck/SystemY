@@ -18,15 +18,15 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class NameServer extends UnicastRemoteObject implements NameServerOperations, NameServerLifecycleHooks {
+public class NameServer extends UnicastRemoteObject implements NameServerOperations {
 
-    //allRing is a type Ring and contains all the nodes
+    // allRing is a type Ring and contains all the nodes
     private final Ring allRing = new Ring();
-    //readyRing is a type Ring and contains all the nodes which are fully integrated and ready
+    // readyRing is a type Ring and contains all the nodes which are fully integrated and ready
     private final Ring readyRing = new Ring();
     private final InetAddress ip;
 
-    //Runnable = functions that needs to be excecuted
+    // Runnable = functions that needs to be excecuted
     private final ArrayList<Runnable> onReadyRunnables = new ArrayList<Runnable>();
     private final ArrayList<Runnable> onShutdownRunnables = new ArrayList<Runnable>();
 
@@ -34,10 +34,10 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     private boolean isShuttingDown = false;
 
-    //Registry for RMI
+    // Registry for RMI
     private Registry registry;
 
-    //NameServer constructor
+    // NameServer constructor
     public NameServer(InetAddress ip) throws RemoteException {
         super();
         this.ip = ip;
@@ -45,10 +45,10 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
 
     public void start() throws IOException, AlreadyBoundException, ParseException, UnknownMessageException, ExistingNodeException {
 
-        //Disable IPv6
+        // Disable IPv6
         System.setProperty("java.net.preferIPv4Stack", "true");
 
-        //REGISTRY FOR RMI
+        // REGISTRY FOR RMI
         //--------------------------------------------------------------------------------------------------------------------------------------
         log("Creating registry");
         registry = LocateRegistry.createRegistry(Constants.REGISTRY_PORT); //create a remote object registry that accepts calls on REGISTRY_PORT
@@ -59,7 +59,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         log("Bound this to registry");
         //--------------------------------------------------------------------------------------------------------------------------------------
 
-        //MULTICASTS
+        // MULTICASTS
         //--------------------------------------------------------------------------------------------------------------------------------------
         InetAddress multicastIp = InetAddress.getByName(Constants.MULTICAST_IP); //determines the ip adres of the host
         multicastSocket = new MulticastSocket(Constants.MULTICAST_PORT); //make new multicastSocket
@@ -87,7 +87,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         onShutdownRunnables.forEach(Runnable::run);
     }
 
-    //With this method, the nameserver can response to multicasts. Nodes can send four kinds of multicasts.
+    // With this method, the nameserver can response to multicasts. Nodes can send four kinds of multicasts.
     private void handleMulticastPacket(DatagramPacket packet) throws IOException, ParseException, UnknownMessageException, InterruptedException {
         JSONObject obj = Util.extractJSONFromPacket(packet);
 
@@ -130,7 +130,7 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
             case "node_ready":
                 this.readyRing.put(nodeHash, this.allRing.get(nodeHash)); // node is ready and can put into readyRing
                 break;
-            case "node_shutdown":
+            case "node_shutdown": // this is unused, see notifyFailure
                 this.allRing.remove(nodeHash); // remove node from allRing
                 this.readyRing.remove(nodeHash); // remove node from readyRing
                 break;
@@ -139,8 +139,8 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
-    //Method to add new node. If the node allready exist, an exception will be throwed.
-    //Otherwise the node is add to the allRing of type Ring (treemap)
+    // Method to add new node. If the node allready exist, an exception will be throwed.
+    // Otherwise the node is add to the allRing of type Ring (treemap)
     private void registerNode(int hash, InetSocketAddress address) throws ExistingNodeException {
         if(this.allRing.containsKey(hash)) {
             throw new ExistingNodeException(hash);
@@ -149,23 +149,24 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         }
     }
 
-    //Methode to remove a node when it fails, given the hash of the node.
+    // Method to remove a node when it fails, given the hash of the node.
+    // Invoked by node via RMI when agent sending fails on node
     public void notifyFailure(int nodeHash) {
         this.allRing.remove(nodeHash);
         this.readyRing.remove(nodeHash);
     }
 
-    //Get the IP adres from node with nodeHash
+    // Get the IP adres from node with nodeHash
     public InetSocketAddress getAddressByHash(int nodeHash) {
         return this.allRing.get(nodeHash);
     }
 
-    //We always replicate to a lower hash ID
+    // We always replicate to a lower hash ID
     public int getNodeHashToReplicateTo(int fileHash) {
         return this.readyRing.lowerModularKey(fileHash);
     }
 
-    //Get number of all nodes
+    // Get number of all nodes
     public int getNumberOfNodes() {
         return this.allRing.size();
     }
@@ -220,19 +221,14 @@ public class NameServer extends UnicastRemoteObject implements NameServerOperati
         UnicastRemoteObject.unexportObject(this.registry, true);
     }
 
-    //Method to add to the list onReadyRunnables
-    @Override
     public void onReady(Runnable runnable) {
         onReadyRunnables.add(runnable);
     }
-
-    //Method to add to the list onShutdownRunnables
-    @Override
     public void onShutdown(Runnable runnable) {
         onShutdownRunnables.add(runnable);
     }
 
-    //Method to print
+    // Method to print
     private void log(String str) {
         System.out.println("[nameserver] " + str);
     }

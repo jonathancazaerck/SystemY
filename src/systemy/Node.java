@@ -17,7 +17,7 @@ import java.rmi.registry.Registry;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-public class Node implements NodeLifecycleHooks {
+public class Node {
     private final InetSocketAddress address;
     private final String name;
     private final int hash;
@@ -416,38 +416,9 @@ public class Node implements NodeLifecycleHooks {
         this.fileListenerThread.join();
         this.multicastListenerThread.join();
     }
-
-//    private void replicateFiles() throws IOException, NotBoundException {
-//        replicateFiles(null);
-//    }
-//
-//    private void replicateFiles(Integer limitHash) throws IOException, NotBoundException {
-//        if(isAlone()) return;
-//
-//        File[] localFiles = localFilesPath.toFile().listFiles();
-//        if(localFiles == null) return;
-//
-//        for (File localFile : localFiles) {
-//            int fileHash = Util.hash(name);
-//
-//            int nodeHashToDupl = this.nameServer.getNodeHashToReplicateTo(fileHash);
-//
-//            if (nodeHashToDupl == hash) nodeHashToDupl = prevNodeHash;
-//            if (limitHash != null && nodeHashToDupl != limitHash) continue;
-//
-//            InetSocketAddress addressToDupl = this.nameServer.getAddressByHash(nodeHashToDupl);
-//
-//            log("Replicating file " + localFile.getName() + " to " + nodeHashToDupl + " with address " + addressToDupl);
-//
-//            sendFileToAddress(localFile, addressToDupl);
-//        }
-//
-//        this.onFilesReplicatedRunnables.forEach(Runnable::run);
-//    }
-
-    // Methode to replicate a file.
+    // Method to replicate a file.
     // Invoked by replicateFiles method
-    // Input is the reference to the file we want to replicate
+    // Input is the reference to the file we want to replicate, destination is to be determined.
     public void replicateFile(FileRef fileRef) throws IOException, FileNotPresentException {
         int fileHash = Util.hash(fileRef.getFileName()); //calculate the hash of the file
 
@@ -564,7 +535,7 @@ public class Node implements NodeLifecycleHooks {
             case "node_ready":
                 removeRedunantFiles(sourceNodeHash); // check later
                 break;
-            case "node_shutdown":
+            case "node_shutdown": // this is unused
                 if (this.prevNodeHash == sourceNodeHash) {
                     this.prevNodeHash = (int) (long) msg.get("prev_hash");
                 }
@@ -590,14 +561,12 @@ public class Node implements NodeLifecycleHooks {
 
     private void handleUnicast(Socket request) throws IOException, ParseException, UnmatchedFileSizeException, UnknownMessageException {
         InputStream in = request.getInputStream();
-        byte[] fileMetadataBuffer = new byte[Constants.FILE_METADATA_LENGTH];
-        in.read(fileMetadataBuffer, 0, Constants.FILE_METADATA_LENGTH);
+        byte[] fileMetadataBuffer = new byte[Constants.TCP_METADATA_LENGTH];
+        in.read(fileMetadataBuffer, 0, Constants.TCP_METADATA_LENGTH);
         String metadataStr = new String(Util.trimByteArray(fileMetadataBuffer));
 
         log("Incoming metadata " + metadataStr);
         JSONObject metadata = (JSONObject) JSONValue.parseWithException(metadataStr+"\n");
-
-        // TODO: metadata type = file_metadata / agent_metadata
 
         String metadataType = (String) metadata.get("type");
 
@@ -660,32 +629,21 @@ public class Node implements NodeLifecycleHooks {
         return hash == prevNodeHash;
     }
 
-    @Override
     public void onReady(Runnable runnable) {
         onReadyRunnables.add(runnable);
     }
-
-    @Override
     public void onShutdown(Runnable runnable) {
         onShutdownRunnables.add(runnable);
     }
-
-    @Override
     public void onFilesReplicated(Runnable runnable) {
         onFilesReplicatedRunnables.add(runnable);
     }
-
-    @Override
     public void onNeighboursChanged(Runnable runnable) {
         onNeighboursChangedRunnables.add(runnable);
     }
-
-    @Override
     public void onFileListChanged(Runnable runnable) {
         onFileListChangedRunnables.add(runnable);
     }
-
-    @Override
     public void onBound(Runnable runnable) {
         onBoundRunnables.add(runnable);
     }
@@ -719,7 +677,7 @@ public class Node implements NodeLifecycleHooks {
             log("Running agent done");
             if (isAlone) return;
             try {
-                TimeUnit.SECONDS.sleep(1);
+                TimeUnit.MILLISECONDS.sleep(Constants.AGENT_DELAY);
                 if (agent.shouldProceed()) {
                     sendAgentToNextNode(agent);
                 } else {
@@ -823,7 +781,8 @@ public class Node implements NodeLifecycleHooks {
     }
 
     private void startAgentTimeoutChecker() {
-        int timeout = 5 + new Random().nextInt(20);
+        // timeout needs to be quite random in order not to trigger multiple nodes
+        int timeout = Constants.AGENT_TIMEOUT + new Random().nextInt(20 * 1000);
         new Thread(() -> {
             while (true) {
                 try {
@@ -832,7 +791,7 @@ public class Node implements NodeLifecycleHooks {
                         log("Haven't seen files agent in " + timeout + " seconds, spawning new");
                         spawnFilesAgent();
                     }
-                    TimeUnit.SECONDS.sleep(1);
+                    TimeUnit.MILLISECONDS.sleep(1);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }

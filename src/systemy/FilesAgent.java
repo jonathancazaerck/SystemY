@@ -50,7 +50,6 @@ public class FilesAgent implements Agent {
                 lockedFileRequesterNodeHash = currentNode.getHash();
 
                 // find the fileref in own list, and lock
-                // TODO: waarom de fok gebeurt dit zelfs
                 for (FileRef updatedFileRef : updatedFileRefs){
                     if(lockedFile.getFileNameHash() == updatedFileRef.getFileNameHash()){
                         updatedFileRef.lock();

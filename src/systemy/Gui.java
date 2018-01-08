@@ -18,7 +18,6 @@ public class Gui {
     private JList<String> fileList;
     private JButton downloadButton;
     private JButton openButton;
-    private JButton deleteButton;
     private JPanel jpanel;
     private JLabel selectedItemLabel;
     private JLabel fileLocationLabel;
@@ -33,7 +32,6 @@ public class Gui {
 
     private Runnable onClickDownloadRunnable;
     private Runnable onClickOpenRunnable;
-    private Runnable onClickDeleteRunnable;
 
 
     public Gui() {
@@ -73,24 +71,6 @@ public class Gui {
                 if (selectedFile != null) {
                     JOptionPane.showMessageDialog(jpanel, "Het bestand: " + selectedFile.getFileName() + " wordt geopend.", "Bericht", JOptionPane.INFORMATION_MESSAGE);
                     onClickOpenRunnable.run();
-                } else {
-                    showError();
-                }
-            }
-        });
-
-        deleteButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                if (selectedFile != null) {
-                    String[] options = {"Ja", "Nee"};
-                    int i = JOptionPane.showOptionDialog(jpanel, "Wilt u het bestand: " + selectedFile.getFileName() + " verwijderen?", "Bericht", 0, JOptionPane.WARNING_MESSAGE, null, options, null);
-                    if (i == 0) {
-                        System.out.println("File will be deleted!");
-                        onClickDeleteRunnable.run();
-                    } else {
-                        System.out.println("User makes a mistake!");
-                    }
                 } else {
                     showError();
                 }
@@ -201,10 +181,6 @@ public class Gui {
         this.onClickOpenRunnable = r;
     }
 
-    public void onClickDelete(Runnable r) {
-        this.onClickDeleteRunnable = r;
-    }
-
     public FileRef getSelectedFile() {
         return selectedFile;
     }
@@ -241,9 +217,6 @@ public class Gui {
         nodeInfoLabel = new JLabel();
         nodeInfoLabel.setText("Cazaerck Jonathan - Claes Jill - Havermans Elias - Wirtz Hans Otto");
         jpanel.add(nodeInfoLabel, new GridConstraints(5, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        deleteButton = new JButton();
-        deleteButton.setText("Verwijderen");
-        jpanel.add(deleteButton, new GridConstraints(4, 1, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, new Dimension(110, -1), null, null, 0, false));
         selectedItemLabel = new JLabel();
         selectedItemLabel.setText("/");
         jpanel.add(selectedItemLabel, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, new Dimension(100, -1), new Dimension(100, 22), null, 0, false));

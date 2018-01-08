@@ -1,40 +1,41 @@
-[![Build Status](https://travis-ci.org/jonathancazaerck/systemy.svg?branch=replicateFiles)](https://travis-ci.org/jonathancazaerck/systemy)
+[![Build Status](https://travis-ci.org/jonathancazaerck/SystemY.svg)](https://travis-ci.org/jonathancazaerck/SystemY)
 
 # System Y
 
-## Klassen
-
-- NameServer
-  - bevat een TreeMap die hashes naar IP-adressen mapt
-  - Slaat map op als JSON op harde schijf
-- Node
-  
-## Genereren van JAR
+## Generating JARs
 ```bash
-gradle assemble
+gradlew assemble
+```
+
+## Generating `.exe` for Windows
+```bash
+gradlew createExe
+```
+
+## Generating `.app` for macOS
+```bash
+gradlew createApp
 ```
 
 ## Tests
 ```bash
-gradle check
+gradlew check
 ```
 
-## Nameserver uitvoeren
+## Starting the nameserver
 
 ```bash
 java -jar build/libs/nameserver.jar <localhost/IP>
 ```
 
-De nameserver start ook een RMI registry.
-
-## Node uitvoeren
+## Starting the node
 
 ```bash
 java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
 ```
 
-## Development setup
+## Development setup with IntelliJ IDEA
 
 ```bash
-gradle idea
+gradlew idea
 ```

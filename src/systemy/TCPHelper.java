@@ -19,9 +19,9 @@ public abstract class TCPHelper {
         try {
             OutputStream out = socket.getOutputStream();
 
-            ByteBuffer metadataBuffer = ByteBuffer.allocate(Constants.FILE_METADATA_LENGTH);
+            ByteBuffer metadataBuffer = ByteBuffer.allocate(Constants.TCP_METADATA_LENGTH);
             metadataBuffer.put(metadata.toJSONString().getBytes());
-            out.write(metadataBuffer.array(), 0, Constants.FILE_METADATA_LENGTH);
+            out.write(metadataBuffer.array(), 0, Constants.TCP_METADATA_LENGTH);
 
             if (bis != null) {
                 while ((count = bis.read(fileOutputBuffer)) >= 0) {

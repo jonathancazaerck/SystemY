@@ -91,13 +91,6 @@ public class NodeMain {
                         e.printStackTrace();
                     }
                 });
-//                gui.onClickDelete(() -> {
-//                    try {
-//                        node.sendFileDownloadRequest(gui.getSelectedFile());
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
-//                });
             }
             node.start();
         } catch (RemoteException e) {
