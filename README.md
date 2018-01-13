@@ -11,6 +11,7 @@ gradlew assemble
 ```bash
 gradlew createExe
 ```
+Make sure the `lib` folder is in the same directory as the `.exe`.
 
 ## Generating `.app` for macOS
 ```bash
