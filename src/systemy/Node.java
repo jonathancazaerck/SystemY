@@ -727,6 +727,7 @@ public class Node {
         log("spawning files agent");
         Agent agent = new FilesAgent();
         startAgent(agent);
+        lastFilesAgentSeenTime = System.currentTimeMillis();
     }
 
     private void spawnFailureAgent(int failedNodeHash) {
@@ -787,7 +788,7 @@ public class Node {
             while (true) {
                 try {
                     if (lastFilesAgentSeenTime != 0 &&
-                            System.currentTimeMillis() - lastFilesAgentSeenTime > timeout * 1000) {
+                            System.currentTimeMillis() - lastFilesAgentSeenTime > timeout) {
                         log("Haven't seen files agent in " + timeout + " seconds, spawning new");
                         spawnFilesAgent();
                     }
