@@ -11,12 +11,14 @@ gradlew assemble
 ```bash
 gradlew createExe
 ```
-Make sure the `lib` folder is in the same directory as the `.exe`.
+The `.exe` will be located in `build/launch4j`.
+Make sure the `lib` folder stays in the same directory as the `.exe`.
 
 ## Generating `.app` for macOS
 ```bash
 gradlew createApp
 ```
+The `.app` will be located in `build/macApp`.
 
 ## Tests
 ```bash
@@ -26,26 +28,16 @@ gradlew check
 ## Starting the node
 
 ```bash
-java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
+java -jar build/libs/node.jar <name> <ip/localhost> <port> [--gui]
 ```
-
-```bash
-java -jar build/libs/node.jar --gui
-```
-
-```bash
-bin/system-y-node bin/system-y-node # Linux/macOS only
-```
+Aliased to `bin/system-y-node` for Linux/macOS.
 
 ## Starting the nameserver
 
 ```bash
-java -jar build/libs/nameserver.jar <localhost/IP>
+java -jar build/libs/nameserver.jar <ip/localhost>
 ```
-
-```bash
-bin/system-y-nameserver # Linux/macOS only
-```
+Aliased to `bin/system-y-nameserver` for Linux/macOS.
 
 ## Development setup with IntelliJ IDEA
 
