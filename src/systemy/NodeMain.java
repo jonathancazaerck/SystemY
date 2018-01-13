@@ -27,7 +27,7 @@ public class NodeMain {
 
         try {
             Node node;
-            if (enableGui) {
+            if (enableGui || (args.length == 1 && args[0].equals("--gui"))) {
                 gui = Gui.start();
                 node = gui.getNode();
             } else {
@@ -37,7 +37,7 @@ public class NodeMain {
                 int port = args.length > 2 ? Integer.parseInt(args[2]) : Constants.DEFAULT_PORT;
                 InetSocketAddress address = new InetSocketAddress(args[1], port);
                 if (args.length > 3) Node.setFilesPath(Paths.get(args[3]));
-                if ((args.length > 4 && args[4].equals("gui"))) gui = Gui.start();
+                if ((args.length > 4 && args[4].equals("--gui"))) gui = Gui.start();
                 node = new Node(name, address);
             }
 

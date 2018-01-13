@@ -124,7 +124,6 @@ public class Gui {
         label.add(new JLabel("Naam:", SwingConstants.RIGHT));
         label.add(new JLabel("IP-adres:", SwingConstants.RIGHT));
         label.add(new JLabel("Poort:", SwingConstants.RIGHT));
-        label.add(new JLabel("Map:", SwingConstants.RIGHT));
         panel.add(label, BorderLayout.WEST);
 
         JPanel controls = new JPanel(new GridLayout(0, 1, 2, 2));
@@ -136,16 +135,6 @@ public class Gui {
         JTextField FNodePort = new JTextField();
         FNodePort.setText("6790");
         controls.add(FNodePort);
-        JTextField FNodeFolder = new JTextField();
-        FNodeFolder.setText("tmp/files");
-        controls.add(FNodeFolder);
-
-//        JFileChooser f = new JFileChooser();
-//        f.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
-//        f.showSaveDialog(null);
-//        //nodeFolder = f.getCurrentDirectory() + f.getSelectedFile()
-//        nodeFolder = new StringBuilder().append(f.getCurrentDirectory()).append("/").append(f.getSelectedFile()).toString();
-//        controls.add(f);
 
         panel.add(controls, BorderLayout.CENTER);
 
@@ -153,7 +142,13 @@ public class Gui {
 
         String nodeIpName = FNodeIP.getText();
         int nodePort = Integer.parseInt(FNodePort.getText());
-        nodeFilesPath = Paths.get(FNodeFolder.getText());
+
+        JFileChooser f = new JFileChooser();
+        f.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        f.showSaveDialog(null);
+        String pathStr = new StringBuilder().append(f.getSelectedFile()).toString();
+        nodeFilesPath = Paths.get(pathStr);
+        controls.add(f);
 
         nodeName = FNodeName.getText();
         try {

@@ -23,16 +23,28 @@ gradlew createApp
 gradlew check
 ```
 
+## Starting the node
+
+```bash
+java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
+```
+
+```bash
+java -jar build/libs/node.jar --gui
+```
+
+```bash
+bin/system-y-node bin/system-y-node # Linux/macOS only
+```
+
 ## Starting the nameserver
 
 ```bash
 java -jar build/libs/nameserver.jar <localhost/IP>
 ```
 
-## Starting the node
-
 ```bash
-java -jar build/libs/node.jar <name> <localhost/IP> <poortnummer>
+bin/system-y-nameserver # Linux/macOS only
 ```
 
 ## Development setup with IntelliJ IDEA
